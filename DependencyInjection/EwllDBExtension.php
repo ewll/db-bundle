@@ -20,7 +20,7 @@ class EwllDBExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $logger_channel = $config['logger']['channel'] ?? null;
-        $logger = (isset($config['logger']['id']))
+        $logger = (!isset($config['logger']['id']))
             ? null
             : new Reference($config['logger']['id']);
 
