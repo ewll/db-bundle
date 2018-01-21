@@ -1,5 +1,5 @@
 {
-  "name": "ewll/DBBundle",
+  "name": "ewll/db-bundle",
   "description": "DB Bundle",
   "type": "symfony-bundle",
   "license": "proprietary",
