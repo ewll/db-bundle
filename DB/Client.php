@@ -31,9 +31,6 @@ class Client
     /** @var string Password */
     private $password;
 
-    /** @var array Pre queries */
-    private $preQueries;
-
     /** @var LoggerInterface Psr logger */
     private $logger;
 
@@ -46,7 +43,6 @@ class Client
      * @param string $username Database user
      * @param string $password Password
      * @param string $charset Charset
-     * @param array $preQueries Pre queries
      * @param array $options PDO options
      * @param LoggerInterface $logger Psr logger
      */
@@ -57,7 +53,6 @@ class Client
         string $username,
         string $password,
         string $charset,
-        array $preQueries,
         array $options = [],
         LoggerInterface $logger = null
     ) {
@@ -70,8 +65,6 @@ class Client
         $options[PDO::ATTR_EMULATE_PREPARES] = 0;
         $options[PDO::MYSQL_ATTR_DIRECT_QUERY] = 0;
         $this->options = $options;
-
-        $this->preQueries = $preQueries;
 
         $this->logger = $logger ?: new NullLogger();
     }
@@ -100,9 +93,6 @@ class Client
                 ]);
 
                 throw new ConnectionException($exception);
-            }
-            foreach ($this->preQueries as $preQuery) {
-                $this->exec($preQuery);
             }
         }
 

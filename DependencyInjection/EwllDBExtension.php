@@ -20,7 +20,7 @@ class EwllDBExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $logger_channel = $config['logger']['channel'] ?? null;
-        $logger = (null === $config['logger']['id'])
+        $logger = (isset($config['logger']['id']))
             ? null
             : new Reference($config['logger']['id']);
 
@@ -35,7 +35,6 @@ class EwllDBExtension extends Extension
                 ->addArgument($options['username'])
                 ->addArgument($options['password'])
                 ->addArgument($options['charset'])
-                ->addArgument($config['pre_queries'])
                 ->addArgument($options['options'])
                 ->addArgument($logger);
 
