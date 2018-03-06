@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+
+        <service id="ewll.db.command.migrate"
+                 class="Ewll\DBBundle\Command\MigrateCommand">
+            <tag name="console.command" command="ewll:db:migrate" />
+            <argument type="service" id="ewll.db.migration.manager" />
+        </service>
+
+        <service id="ewll.db.migration.manager"
+                 class="Ewll\DBBundle\Migration\MigrationManager">
+            <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
+            <argument>%kernel.project_dir%</argument>
+        </service>
+
+    </services>
+</container>
