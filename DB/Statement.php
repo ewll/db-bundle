@@ -110,13 +110,12 @@ class Statement
      * Fetch single array
      *
      * @return array
-     * @throws EntryNotFoundException
      */
-    public function fetchArray(): array
+    public function fetchArray(): ?array
     {
         $array = $this->statement->fetch(PDO::FETCH_ASSOC);
         if (false === $array) {
-            throw new EntryNotFoundException();
+            return null;
         }
 
         return $array;
@@ -125,17 +124,35 @@ class Statement
     /**
      * Fetch single object
      *
-     * @return object
-     * @throws EntryNotFoundException
+     * @return object|null
      */
     public function fetchObject($class)
     {
         $object = $this->statement->fetchObject($class);
         if (false === $object) {
-            throw new EntryNotFoundException();
+            return null;
         }
 
         return $object;
+    }
+
+    /**
+     * Fetch objects
+     *
+     * @return object[]
+     */
+    public function fetchObjects($class, $indexBy = null)
+    {
+        $items = [];
+        while ($item = $this->statement->fetchObject($class)) {
+            if (null === $indexBy) {
+                $items[] = $item;
+            } else {
+                $items[$item->$indexBy] = $item;
+            }
+        }
+
+        return $items;
     }
 
     /**
@@ -159,7 +176,7 @@ class Statement
     {
         $value = $this->statement->fetch(PDO::FETCH_COLUMN, $column_number);
         if (false === $value) {
-            throw new EntryNotFoundException();
+            return null;
         }
 
         return $value;

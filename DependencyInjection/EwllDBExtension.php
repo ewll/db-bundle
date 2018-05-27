@@ -22,7 +22,7 @@ class EwllDBExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $loader = new XmlFileLoader($container, new FileLocator(dirname(__DIR__).'/Resources/config'));
-        $loader->load('migration.xml');
+        $loader->load('services.xml');
 
         $logger_channel = $config['logger']['channel'] ?? null;
         $logger = (!isset($config['logger']['id']))

@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+
+        <service id="ewll.db.command.migrate"
+                 class="Ewll\DBBundle\Command\MigrateCommand">
+            <tag name="console.command" command="ewll:db:migrate" />
+            <argument type="service" id="ewll.db.migration.manager" />
+        </service>
+
+        <service id="ewll.db.command.entity_cache"
+                 class="Ewll\DBBundle\Command\EntityCacheCommand">
+            <tag name="console.command" command="ewll:db:entity-cache" />
+            <argument type="service" id="annotation_reader" />
+            <argument>%kernel.project_dir%</argument>
+        </service>
+
+        <service id="ewll.db.migration.manager"
+                 class="Ewll\DBBundle\Migration\MigrationManager">
+            <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
+            <argument>%kernel.project_dir%</argument>
+        </service>
+
+        <service id="ewll.db.hydrator"
+                 class="Ewll\DBBundle\Repository\Hydrator">
+        </service>
+
+        <service id="ewll.db.repository-provider"
+                 class="Ewll\DBBundle\Repository\RepositoryProvider">
+            <argument type="service" id="service_container"/>
+            <argument type="tagged" tag="repositories"/>
+            <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
+            <argument type="service" id="ewll.db.hydrator"/>
+        </service>
+
+        <service id="ewll.db.repository"
+                 class="Ewll\DBBundle\Repository\Repository"
+                 shared="false"
+                 public="true">
+        </service>
+
+    </services>
+</container>

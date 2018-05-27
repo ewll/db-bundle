@@ -74,7 +74,7 @@ class MigrationManager
         $sql = $migration->up();
         $this->defaultDbClient->exec($sql);
         $this->defaultDbClient->prepare(<<<SQL
-INSERT INTO migrations
+INSERT INTO migration
     (name, description)
 VALUES
     (?, ?)
@@ -93,7 +93,7 @@ SQL
         $sql = $migration->down();
         $this->defaultDbClient->exec($sql);
         $this->defaultDbClient->prepare(<<<SQL
-DELETE FROM migrations WHERE name = ?
+DELETE FROM migration WHERE name = ?
 SQL
         )->execute([$name]);
     }
@@ -102,7 +102,7 @@ SQL
     {
         $statement = $this->defaultDbClient->prepare(<<<SQL
 SELECT name
-FROM migrations
+FROM migration
 SQL
         )->execute();
 
@@ -114,7 +114,7 @@ SQL
     private function createMigrationsTable()
     {
         $this->defaultDbClient->exec(<<<SQL
-CREATE TABLE `migrations` (
+CREATE TABLE `migration` (
     `id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(64) NOT NULL,
     `description` VARCHAR(250) NOT NULL,

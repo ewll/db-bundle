@@ -3,7 +3,7 @@
 trait DefaultDbClientTrait
 {
     /** @var Client Default DB client */
-    private $defaultDbClient;
+    protected $defaultDbClient;
 
     /**
      * @param Client $defaultDbClient
