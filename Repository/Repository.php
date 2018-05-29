@@ -164,4 +164,14 @@ SQL
 
         return implode(', ', $list);
     }
+
+    protected function getGroupByList($prefix)
+    {
+        $list = [];
+        foreach ($this->config->fields as $fieldName => $type) {
+            $list[] = "$prefix.$fieldName";
+        }
+
+        return implode(', ', $list);
+    }
 }
