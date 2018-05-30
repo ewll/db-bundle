@@ -2,7 +2,6 @@
 
 use Ewll\DBBundle\DB\Client;
 
-//@TODO cache
 class Repository
 {
     /** @var EntityConfig */
@@ -31,41 +30,14 @@ class Repository
 
     public function findOneBy(array $params)
     {
-        $prefix = 't1';
-        $where = [];
-        foreach ($params as $field => $value) {
-            $where[] = "$prefix.$field = :$field";
-        }
-        $whereStr = implode(' AND ', $where);
-        $statement = $this->dbClient->prepare(<<<SQL
-SELECT {$this->getSelectList($prefix)}
-FROM {$this->config->tableName} $prefix
-WHERE $whereStr
-LIMIT 1
-SQL
-        )->execute($params);
-
-        $item = $this->hydrator->hydrateOne($this->config, $prefix, $statement);
+        $item = $this->find(true, $params);
 
         return $item;
     }
 
     public function findBy(array $params, string $indexBy = null)
     {
-        $prefix = 't1';
-        $where = [];
-        foreach ($params as $field => $value) {
-            $where[] = "$prefix.$field = :$field";
-        }
-        $whereStr = implode(' AND ', $where);
-        $statement = $this->dbClient->prepare(<<<SQL
-SELECT {$this->getSelectList($prefix)}
-FROM {$this->config->tableName} $prefix
-WHERE $whereStr
-SQL
-        )->execute($params);
-
-        $items = $this->hydrator->hydrateMany($this->config, $prefix, $statement, $indexBy);
+        $items = $this->find(false, $params, $indexBy);
 
         return $items;
     }
@@ -76,13 +48,16 @@ SQL
             return $this->cache[$id];
         }
 
-        $item = $this->findOneBy(['id' => $id]);
-
-        if (null !== $item) {
-            $this->cache[$id] = $item;
-        }
+        $item = $this->find(true, ['id' => $id]);
 
         return $item;
+    }
+
+    public function findAll(string $indexBy = null)
+    {
+        $items = $this->find(false, [], $indexBy);
+
+        return $items;
     }
 
     public function create($item)
@@ -150,9 +125,9 @@ SQL
 SELECT FOUND_ROWS()
 SQL
         )->execute();
-            $num = $statement->fetchColumn();
+        $num = $statement->fetchColumn();
 
-            return $num;
+        return $num;
     }
 
     protected function getSelectList($prefix)
@@ -173,5 +148,41 @@ SQL
         }
 
         return implode(', ', $list);
+    }
+
+    private function find(bool $one, array $params, string $indexBy = null)
+    {
+        $prefix = 't1';
+        $sql = <<<SQL
+SELECT {$this->getSelectList($prefix)}
+FROM {$this->config->tableName} $prefix
+SQL;
+        if (count($params) > 0) {
+            $where = [];
+            foreach ($params as $field => $value) {
+                $where[] = "$prefix.$field = :$field";
+            }
+            $whereStr = implode(' AND ', $where);
+            $sql .= "\nWHERE $whereStr";
+        }
+
+        if (true === $one) {
+            $sql .= "\nLIMIT 1";
+        }
+        $statement = $this->dbClient->prepare($sql)->execute($params);
+
+        if (true === $one) {
+            $result = $this->hydrator->hydrateOne($this->config, $prefix, $statement);
+            if (null !== $result) {
+                $this->cache[$result->id] = $result;
+            }
+        } else {
+            $result = $this->hydrator->hydrateMany($this->config, $prefix, $statement, $indexBy);
+            foreach ($result as $item) {
+                $this->cache[$item->id] = $item;
+            }
+        }
+
+        return $result;
     }
 }
