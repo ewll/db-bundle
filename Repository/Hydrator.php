@@ -27,7 +27,7 @@ class Hydrator
         $data = $statement->fetchArrays();
 
         foreach ($data as $row) {
-            $key = null === $indexBy ? count($items) : $row[$indexBy];
+            $key = null === $indexBy ? count($items) : $row["{$prefix}_$indexBy"];
             $items[$key] = $this->hydrate($entityConfig, $prefix, $row);
         }
 

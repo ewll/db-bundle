@@ -50,7 +50,9 @@ class MigrationManager
         try {
             $migratedMigrations = $this->getMigrations();
             foreach ($migratedMigrations as $migratedMigration) {
-                $migrations[$migratedMigration['name']]['migrated'] = true;
+                if (isset($migrations[$migratedMigration['name']])) {
+                    $migrations[$migratedMigration['name']]['migrated'] = true;
+                }
             }
         } catch (ExecuteException $e) {
             if ($e->getPrevious()->getCode() === self::TABLE_OR_VIEW_NOT_FOUND_ERROR_CODE) {

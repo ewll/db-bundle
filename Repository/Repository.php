@@ -185,4 +185,9 @@ SQL;
 
         return $result;
     }
+
+    public function clear()
+    {
+        $this->cache = [];
+    }
 }

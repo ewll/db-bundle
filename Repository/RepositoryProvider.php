@@ -9,6 +9,7 @@ class RepositoryProvider
     private $defaultDbClient;
     private $container;
     private $repositories;
+    /** @var Repository[] */
     private $cache = [];
     private $cacher;
     private $hydrator;
@@ -59,6 +60,13 @@ class RepositoryProvider
         $this->cache[$repositoryClassName] = $repository;
 
         return $repository;
+    }
+
+    public function clear()
+    {
+        foreach ($this->cache as $repository) {
+            $repository->clear();
+        }
     }
 
     private function getEntityConfig(string $entityClass): EntityConfig
