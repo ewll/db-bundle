@@ -80,7 +80,7 @@ class Repository
             }
         }
 
-        $fieldsStr = implode(', ', $fields);
+        $fieldsStr = '`'.implode('`,`', $fields).'`';
         $placeholdersStr = implode(', ', $placeholders);
         $this->dbClient->prepare(<<<SQL
 INSERT INTO {$this->config->tableName}
@@ -105,7 +105,7 @@ SQL
             if (null === $value) {
                 $sets[] = "{$fieldName} = NULL";
             } else {
-                $sets[] = "{$fieldName} = :{$fieldName}";
+                $sets[] = "`{$fieldName}` = :{$fieldName}";
                 $params[$fieldName] = $value;
             }
         }
