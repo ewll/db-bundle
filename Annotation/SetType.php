@@ -9,6 +9,10 @@ class SetType extends TypeAbstract
             return null;
         }
 
+        if ('' === $value) {
+            return [];
+        }
+
         return explode(',', $value);
     }
 
