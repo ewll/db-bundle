@@ -153,6 +153,7 @@ SQL
     private function find(bool $one, array $params, string $indexBy = null)
     {
         $prefix = 't1';
+        $queryParams = [];
         $sql = <<<SQL
 SELECT {$this->getSelectList($prefix)}
 FROM {$this->config->tableName} $prefix
@@ -160,7 +161,19 @@ SQL;
         if (count($params) > 0) {
             $where = [];
             foreach ($params as $field => $value) {
-                $where[] = "$prefix.$field = :$field";
+                if (is_array($value)) {
+                    $valueItemPlaceholders = [];
+                    foreach ($value as $valueKey => $valueItem) {
+                        $valueItemName = "{$field}_{$valueKey}";
+                        $valueItemPlaceholders[] = ":$valueItemName";
+                        $queryParams[$valueItemName] = $valueItem;
+                        $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
+                    }
+                    $where[] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
+                } else {
+                    $queryParams[$field] = $value;
+                    $where[] = "$prefix.$field = :$field";
+                }
             }
             $whereStr = implode(' AND ', $where);
             $sql .= "\nWHERE $whereStr";
@@ -169,7 +182,7 @@ SQL;
         if (true === $one) {
             $sql .= "\nLIMIT 1";
         }
-        $statement = $this->dbClient->prepare($sql)->execute($params);
+        $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
         if (true === $one) {
             $result = $this->hydrator->hydrateOne($this->config, $prefix, $statement);
