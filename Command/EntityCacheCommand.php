@@ -2,6 +2,7 @@
 
 use Doctrine\Common\Annotations\AnnotationReader;
 use Ewll\DBBundle\Annotation\AnnotationInterface;
+use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\Repository\EntityConfig;
 use ReflectionClass;
 use Symfony\Component\Cache\Simple\FilesystemCache;
@@ -14,13 +15,18 @@ class EntityCacheCommand extends Command
     private $annotationReader;
     private $entityDir;
     private $cache;
+    private $cacheKeyCompiler;
 
-    public function __construct(AnnotationReader $annotationReader, string $projectDir)
-    {
+    public function __construct(
+        AnnotationReader $annotationReader,
+        string $projectDir,
+        CacheKeyCompiler $cacheKeyCompiler
+    ) {
         parent::__construct();
         $this->annotationReader = $annotationReader;
         $this->entityDir = implode(DIRECTORY_SEPARATOR, [$projectDir, 'src', 'Entity']);
         $this->cache = new FilesystemCache();
+        $this->cacheKeyCompiler = $cacheKeyCompiler;
     }
 
     protected function configure()
@@ -48,7 +54,7 @@ class EntityCacheCommand extends Command
                     }
                 }
             }
-            $cacheKey = 'ewll.entity.'.strtolower(preg_replace('/[^a-z]/i', '', $className));
+            $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
             $this->cache->set($cacheKey, $entityConfig);
         }

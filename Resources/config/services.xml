@@ -17,6 +17,7 @@
             <tag name="console.command" command="ewll:db:entity-cache" />
             <argument type="service" id="annotation_reader" />
             <argument>%kernel.project_dir%</argument>
+            <argument type="service" id="ewll.db.entity-key-compiler" />
         </service>
 
         <service id="ewll.db.migration.manager"
@@ -35,6 +36,10 @@
             <argument type="tagged" tag="repositories"/>
             <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
             <argument type="service" id="ewll.db.hydrator"/>
+            <argument type="service" id="ewll.db.entity-key-compiler"/>
+        </service>
+
+        <service id="ewll.db.entity-key-compiler" class="Ewll\DBBundle\DB\CacheKeyCompiler">
         </service>
 
         <service id="ewll.db.repository"

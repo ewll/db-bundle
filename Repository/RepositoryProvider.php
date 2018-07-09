@@ -1,5 +1,6 @@
 <?php namespace Ewll\DBBundle\Repository;
 
+use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\DB\Client;
 use Symfony\Component\Cache\Simple\FilesystemCache;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -15,18 +16,21 @@ class RepositoryProvider
     private $hydrator;
 
     private $entityConfigs = [];
+    private $cacheKeyCompiler;
 
     public function __construct(
         ContainerInterface $container,
         iterable $repositories,
         Client $defaultDbClient,
-        Hydrator $hydrator
+        Hydrator $hydrator,
+        CacheKeyCompiler $cacheKeyCompiler
     ) {
         $this->defaultDbClient = $defaultDbClient;
         $this->container = $container;
         $this->repositories = $repositories;
         $this->cacher = new FilesystemCache();
         $this->hydrator = $hydrator;
+        $this->cacheKeyCompiler = $cacheKeyCompiler;
     }
 
     public function get(string $entityClass): Repository
@@ -71,7 +75,7 @@ class RepositoryProvider
 
     private function getEntityConfig(string $entityClass): EntityConfig
     {
-        $key = 'ewll.entity.'.strtolower(preg_replace('/[^a-z]/i', '', $entityClass));
+        $key = $this->cacheKeyCompiler->compile($entityClass);
 
         if (isset($this->entityConfigs[$key])) {
             return $this->entityConfigs[$key];
