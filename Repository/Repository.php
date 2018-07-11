@@ -130,6 +130,25 @@ SQL
         return $num;
     }
 
+    public function findByRelativeIndexed(array $list, $fieldName = null): array
+    {
+        $fieldName = $fieldName ?? "{$this->config->tableName}Id";
+        $ids = [];
+        foreach ($list as $item) {
+            $id = $item->$fieldName;
+            if (null !== $id) {
+                $ids[] = $id;
+            }
+        }
+        if (count($ids) === 0) {
+            return [];
+        }
+        $ids = array_unique($ids);
+        $elements = $this->findBy(['id' => $ids], 'id');
+
+        return $elements;
+    }
+
     protected function getSelectList($prefix)
     {
         $list = [];
@@ -167,8 +186,8 @@ SQL;
                         $valueItemName = "{$field}_{$valueKey}";
                         $valueItemPlaceholders[] = ":$valueItemName";
                         $queryParams[$valueItemName] = $valueItem;
-                        $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
                     }
+                    $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
                     $where[] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
                 } else {
                     $queryParams[$field] = $value;
