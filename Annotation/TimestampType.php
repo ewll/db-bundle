@@ -5,7 +5,7 @@ use DateTime;
 /** @Annotation */
 class TimestampType extends TypeAbstract
 {
-    public function transformToView($value)
+    public function transformToView($value, array $options)
     {
         if (null === $value) {
             return null;
@@ -14,7 +14,7 @@ class TimestampType extends TypeAbstract
         return empty($value) ? null : new DateTime($value);
     }
 
-    public function transformToStore($value)
+    public function transformToStore($value, array $options)
     {
         if (null === $value) {
             return null;

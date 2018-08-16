@@ -4,15 +4,19 @@ use Ewll\DBBundle\DB\Statement;
 
 class Hydrator
 {
-    public function hydrateOne(EntityConfig $entityConfig, string $prefix, Statement $statement)
-    {
+    public function hydrateOne(
+        EntityConfig $entityConfig,
+        string $prefix,
+        Statement $statement,
+        array $transformationOptions
+    ) {
         $data = $statement->fetchArray();
 
         if (null === $data) {
             return null;
         }
 
-        $item = $this->hydrate($entityConfig, $prefix, $data);
+        $item = $this->hydrate($entityConfig, $prefix, $data, $transformationOptions);
 
         return $item;
     }
@@ -21,6 +25,7 @@ class Hydrator
         EntityConfig $entityConfig,
         string $prefix,
         Statement $statement,
+        array $transformationOptions,
         string $indexBy = null
     ) {
         $items = [];
@@ -28,18 +33,18 @@ class Hydrator
 
         foreach ($data as $row) {
             $key = null === $indexBy ? count($items) : $row["{$prefix}_$indexBy"];
-            $items[$key] = $this->hydrate($entityConfig, $prefix, $row);
+            $items[$key] = $this->hydrate($entityConfig, $prefix, $row, $transformationOptions);
         }
 
         return $items;
     }
 
-    private function hydrate(EntityConfig $entityConfig, string $prefix, array $data)
+    private function hydrate(EntityConfig $entityConfig, string $prefix, array $data, array $transformationOptions)
     {
         $item = new $entityConfig->class;
 
         foreach ($entityConfig->fields as $fieldName => $type) {
-            $item->$fieldName = $type->transformToView($data["{$prefix}_$fieldName"]);
+            $item->$fieldName = $type->transformToView($data["{$prefix}_$fieldName"], $transformationOptions);
         }
 
         return $item;

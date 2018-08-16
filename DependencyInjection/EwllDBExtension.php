@@ -40,6 +40,7 @@ class EwllDBExtension extends Extension
                 ->addArgument($options['username'])
                 ->addArgument($options['password'])
                 ->addArgument($options['charset'])
+                ->addArgument($options['cipherkey'])
                 ->addArgument($options['options'])
                 ->addArgument($logger);
 

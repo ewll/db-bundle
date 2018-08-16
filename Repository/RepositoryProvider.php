@@ -40,12 +40,6 @@ class RepositoryProvider
             return $this->cache[$repositoryClassName];
         }
 
-        /*$implements = class_implements($entityClass);
-        $dtoInterfaceName = DtoInterface::class;
-        if (!isset($implements[$dtoInterfaceName])) {
-            throw new RuntimeException("Class $entityClass must implements $dtoInterfaceName interface");
-        }*/
-
         $repository = null;
         foreach ($this->repositories as $service) {
             if ($repositoryClassName === substr(strrchr(get_class($service), '\\'), 1)) {
@@ -60,6 +54,7 @@ class RepositoryProvider
         $repository->setDbClient($this->defaultDbClient);
         $repository->setEntityConfig($this->getEntityConfig($entityClass));
         $repository->setHydrator($this->hydrator);
+        $repository->setCipherkey($this->defaultDbClient->getCipherkey());
 
         $this->cache[$repositoryClassName] = $repository;
 

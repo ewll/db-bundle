@@ -3,7 +3,7 @@
 /** @Annotation */
 class IntType extends TypeAbstract
 {
-    public function transformToView($value)
+    public function transformToView($value, array $options)
     {
         if (null === $value) {
             return null;

@@ -33,19 +33,8 @@ class Client
 
     /** @var LoggerInterface Psr logger */
     private $logger;
+    private $cipherkey;
 
-    /**
-     * Constructor
-     *
-     * @param string $host Host
-     * @param int $port Port
-     * @param string $dbname Database name
-     * @param string $username Database user
-     * @param string $password Password
-     * @param string $charset Charset
-     * @param array $options PDO options
-     * @param LoggerInterface $logger Psr logger
-     */
     public function __construct(
         string $host,
         int $port,
@@ -53,12 +42,14 @@ class Client
         string $username,
         string $password,
         string $charset,
+        string $cipherkey,
         array $options = [],
         LoggerInterface $logger = null
     ) {
         $this->dsn = sprintf(self::$dsn_format, $host, $port, $dbname, $charset);
         $this->username = $username;
         $this->password = $password;
+        $this->cipherkey = $cipherkey;
 
         $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
         $options[PDO::ATTR_DEFAULT_FETCH_MODE] = PDO::FETCH_ASSOC;
@@ -298,5 +289,10 @@ class Client
     {
         $this->pdo = null;
         $this->logger->info('Close DB: ' . $this->dsn);
+    }
+
+    public function getCipherkey(): string
+    {
+        return $this->cipherkey;
     }
 }

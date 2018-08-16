@@ -9,7 +9,7 @@ abstract class TypeAbstract implements AnnotationInterface
         $this->config = $config;
     }
 
-    public function transformToView($value)
+    public function transformToView($value, array $options)
     {
         if (null === $value) {
             return null;
@@ -18,7 +18,7 @@ abstract class TypeAbstract implements AnnotationInterface
         return $value;
     }
 
-    public function transformToStore($value)
+    public function transformToStore($value, array $options)
     {
         if (null === $value) {
             return null;

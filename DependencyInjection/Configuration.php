@@ -31,6 +31,7 @@ class Configuration implements ConfigurationInterface
                             ->scalarNode('host')->cannotBeEmpty()->defaultValue('127.0.0.1')->end()
                             ->scalarNode('port')->cannotBeEmpty()->defaultValue('3306')->end()
                             ->scalarNode('charset')->cannotBeEmpty()->defaultValue('utf8mb4')->end()
+                            ->scalarNode('cipherkey')->cannotBeEmpty()->defaultValue('')->end()
                             ->arrayNode('options')
                                 ->prototype('integer')
                                     ->defaultValue([])

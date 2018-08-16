@@ -10,6 +10,8 @@ class Repository
     protected $dbClient;
     /** @var Hydrator */
     protected $hydrator;
+    /** @var string */
+    protected $cipherkey;
 
     private $cache = [];
 
@@ -26,6 +28,11 @@ class Repository
     public function setHydrator(Hydrator $hydrator)
     {
         $this->hydrator = $hydrator;
+    }
+
+    public function setCipherkey(string $cipherkey)
+    {
+        $this->cipherkey = $cipherkey;
     }
 
     public function findOneBy(array $params)
@@ -70,7 +77,7 @@ class Repository
                 continue;
             }
 
-            $value = $type->transformToStore($item->$fieldName);
+            $value = $type->transformToStore($item->$fieldName, $this->getFieldTransformationOptions());
             $fields[] = $fieldName;
             if (null === $value) {
                 $placeholders[] = 'NULL';
@@ -101,7 +108,7 @@ SQL
             if ($fieldName === 'id') {
                 continue;
             }
-            $value = $type->transformToStore($item->$fieldName);
+            $value = $type->transformToStore($item->$fieldName, $this->getFieldTransformationOptions());
             if (null === $value) {
                 $sets[] = "{$fieldName} = NULL";
             } else {
@@ -147,6 +154,18 @@ SQL
         $elements = $this->findBy(['id' => $ids], 'id');
 
         return $elements;
+    }
+
+    public function clear()
+    {
+        $this->cache = [];
+    }
+
+    protected function getFieldTransformationOptions()
+    {
+        return [
+            'cipherkey' => $this->cipherkey,
+        ];
     }
 
     protected function getSelectList($prefix)
@@ -203,23 +222,20 @@ SQL;
         }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
+        $transformationOptions = $this->getFieldTransformationOptions();
         if (true === $one) {
-            $result = $this->hydrator->hydrateOne($this->config, $prefix, $statement);
+            $result = $this->hydrator->hydrateOne($this->config, $prefix, $statement, $transformationOptions);
             if (null !== $result) {
                 $this->cache[$result->id] = $result;
             }
         } else {
-            $result = $this->hydrator->hydrateMany($this->config, $prefix, $statement, $indexBy);
+            $result = $this->hydrator
+                ->hydrateMany($this->config, $prefix, $statement, $transformationOptions, $indexBy);
             foreach ($result as $item) {
                 $this->cache[$item->id] = $item;
             }
         }
 
         return $result;
-    }
-
-    public function clear()
-    {
-        $this->cache = [];
     }
 }

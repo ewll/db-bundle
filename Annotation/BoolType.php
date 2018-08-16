@@ -3,7 +3,7 @@
 /** @Annotation */
 class BoolType extends TypeAbstract
 {
-    public function transformToView($value)
+    public function transformToView($value, array $options)
     {
         if (null === $value) {
             return null;
@@ -12,7 +12,7 @@ class BoolType extends TypeAbstract
         return (bool) $value;
     }
 
-    public function transformToStore($value)
+    public function transformToStore($value, array $options)
     {
         if (null === $value) {
             return null;
