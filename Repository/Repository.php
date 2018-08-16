@@ -100,12 +100,15 @@ SQL
         $item->id = (int)$this->dbClient->lastInsertId();
     }
 
-    public function update($item)
+    public function update($item, array $updateFields = null)
     {
         $params = ['id' => $item->id];
         $sets = [];
         foreach ($this->config->fields as $fieldName => $type) {
             if ($fieldName === 'id') {
+                continue;
+            }
+            if (null !== $updateFields && !in_array($fieldName, $updateFields, true)) {
                 continue;
             }
             $value = $type->transformToStore($item->$fieldName, $this->getFieldTransformationOptions());
