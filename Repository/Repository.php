@@ -67,13 +67,13 @@ class Repository
         return $items;
     }
 
-    public function create($item)
+    public function create($item, $isAutoincrement = true)
     {
         $fields = [];
         $placeholders = [];
         $params = [];
         foreach ($this->config->fields as $fieldName => $type) {
-            if ($fieldName === 'id') {
+            if ($isAutoincrement && $fieldName === 'id') {
                 continue;
             }
 
