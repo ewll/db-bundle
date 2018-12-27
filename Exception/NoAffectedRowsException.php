@@ -1,6 +1,7 @@
 <?php namespace Ewll\DBBundle\Exception;
 
-class NoAffectedRowsException extends DBException
-{
+use Exception;
 
+class NoAffectedRowsException extends Exception
+{
 }
