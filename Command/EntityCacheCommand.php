@@ -1,6 +1,6 @@
 <?php namespace Ewll\DBBundle\Command;
 
-use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\Common\Annotations\Reader;
 use Ewll\DBBundle\Annotation\AnnotationInterface;
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\Repository\EntityConfig;
@@ -18,7 +18,7 @@ class EntityCacheCommand extends Command
     private $cacheKeyCompiler;
 
     public function __construct(
-        AnnotationReader $annotationReader,
+        Reader $annotationReader,
         string $projectDir,
         CacheKeyCompiler $cacheKeyCompiler
     ) {
