@@ -42,9 +42,14 @@ class Repository
         return $item;
     }
 
-    public function findBy(array $params, string $indexBy = null)
-    {
-        $items = $this->find(false, $params, $indexBy);
+    public function findBy(
+        array $params,
+        string $indexBy = null,
+        int $page = null,
+        int $itemsPerPage = null,
+        string $sortBy = null
+    ) {
+        $items = $this->find(false, $params, $indexBy, $page, $itemsPerPage, $sortBy);
 
         return $items;
     }
@@ -87,7 +92,7 @@ class Repository
             }
         }
 
-        $fieldsStr = '`'.implode('`,`', $fields).'`';
+        $fieldsStr = '`' . implode('`,`', $fields) . '`';
         $placeholdersStr = implode(', ', $placeholders);
         $this->dbClient->prepare(<<<SQL
 INSERT INTO {$this->config->tableName}
@@ -191,12 +196,25 @@ SQL
         return implode(', ', $list);
     }
 
-    private function find(bool $one, array $params, string $indexBy = null)
-    {
+    private function find(
+        bool $one,
+        array $params,
+        string $indexBy = null,
+        int $page = null,
+        int $itemsPerPage = null,
+        string $sortBy = null
+    ) {
         $prefix = 't1';
         $queryParams = [];
+        $sqlCalcFoundRows = '';
+        $limit = '';
+        if (null !== $page) {
+            $sqlCalcFoundRows = 'SQL_CALC_FOUND_ROWS';
+            $offset = ($page - 1) * $itemsPerPage;
+            $limit = "LIMIT $offset, $itemsPerPage";
+        }
         $sql = <<<SQL
-SELECT {$this->getSelectList($prefix)}
+SELECT $sqlCalcFoundRows {$this->getSelectList($prefix)}
 FROM {$this->config->tableName} $prefix
 SQL;
         if (count($params) > 0) {
@@ -220,8 +238,14 @@ SQL;
             $sql .= "\nWHERE $whereStr";
         }
 
+        if (null !== $sortBy) {
+            $sql .= "\nORDER BY $prefix.$sortBy";
+        }
+
         if (true === $one) {
             $sql .= "\nLIMIT 1";
+        } else {
+            $sql .= "\n$limit";
         }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
