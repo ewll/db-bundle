@@ -47,7 +47,7 @@ class Repository
         string $indexBy = null,
         int $page = null,
         int $itemsPerPage = null,
-        string $sortBy = null
+        array $sortBy = []
     ) {
         $items = $this->find(false, $params, $indexBy, $page, $itemsPerPage, $sortBy);
 
@@ -202,7 +202,7 @@ SQL
         string $indexBy = null,
         int $page = null,
         int $itemsPerPage = null,
-        string $sortBy = null
+        array $sortBy = []
     ) {
         $prefix = 't1';
         $queryParams = [];
@@ -238,8 +238,12 @@ SQL;
             $sql .= "\nWHERE $whereStr";
         }
 
-        if (null !== $sortBy) {
-            $sql .= "\nORDER BY $prefix.$sortBy";
+        if (count($sortBy) > 0) {
+            $sortByStrings = [];
+            foreach ($sortBy as $item) {
+                $sortByStrings[] = "$prefix.{$item['field']} {$item['method']}";
+            }
+            $sql .= '\nORDER BY '.implode(', ', $sortByStrings);
         }
 
         if (true === $one) {
