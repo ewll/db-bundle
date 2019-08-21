@@ -243,7 +243,7 @@ SQL;
             foreach ($sortBy as $item) {
                 $sortByStrings[] = "$prefix.{$item['field']} {$item['method']}";
             }
-            $sql .= '\nORDER BY '.implode(', ', $sortByStrings);
+            $sql .= "\nORDER BY ".implode(', ', $sortByStrings);
         }
 
         if (true === $one) {
