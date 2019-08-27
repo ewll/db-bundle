@@ -9,24 +9,31 @@ use Symfony\Component\Cache\Simple\FilesystemCache;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class EntityCacheCommand extends Command
 {
+    private $container;
     private $annotationReader;
-    private $entityDir;
-    private $cache;
     private $cacheKeyCompiler;
+    private $bundles;
+    private $projectDir;
+    private $cache;
 
     public function __construct(
+        ContainerInterface $container,
         Reader $annotationReader,
-        string $projectDir,
-        CacheKeyCompiler $cacheKeyCompiler
+        CacheKeyCompiler $cacheKeyCompiler,
+        array $bundles,
+        string $projectDir
     ) {
         parent::__construct();
+        $this->container = $container;
         $this->annotationReader = $annotationReader;
-        $this->entityDir = implode(DIRECTORY_SEPARATOR, [$projectDir, 'src', 'Entity']);
-        $this->cache = new FilesystemCache();
         $this->cacheKeyCompiler = $cacheKeyCompiler;
+        $this->projectDir = $projectDir;
+        $this->bundles = $bundles;
+        $this->cache = new FilesystemCache();
     }
 
     protected function configure()
@@ -37,11 +44,30 @@ class EntityCacheCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $files = glob("$this->entityDir/*.php");
+        $entityDirs = [];
+        $entityDirs[] = [
+            'dir' => implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Entity']),
+            'namespace' => 'App',
+        ];
+        foreach ($this->bundles as $bundle) {
+            $bundle = $this->container->get('kernel')->getBundle($bundle);
+            $entityDirs[] = [
+                'dir' => implode(DIRECTORY_SEPARATOR, [$bundle->getPath(), 'Entity']),
+                'namespace' => $bundle->getNamespace(),
+            ];
+        }
+        foreach ($entityDirs as $entityDir) {
+            $this->handleDir($entityDir);
+        }
+    }
+
+    private function handleDir(array $entityDir)
+    {
+        $files = glob("{$entityDir['dir']}/*.php");
         foreach ($files as $file) {
             preg_match('/([a-z]+)\.php/i', $file, $matches);
             $tableName = lcfirst($matches[1]);
-            $className = "\App\Entity\\$matches[1]";
+            $className = implode('\\', ['', $entityDir['namespace'], 'Entity', $matches[1]]);
             $reflectionClass = new ReflectionClass($className);
             $fields = [];
             $reflectionProperties = $reflectionClass->getProperties();
@@ -56,6 +82,7 @@ class EntityCacheCommand extends Command
             }
             $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
+            //var_dump($entityConfig);
             $this->cache->set($cacheKey, $entityConfig);
         }
     }

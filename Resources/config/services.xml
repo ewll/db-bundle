@@ -15,14 +15,18 @@
         <service id="ewll.db.command.entity_cache"
                  class="Ewll\DBBundle\Command\EntityCacheCommand">
             <tag name="console.command" command="ewll:db:entity-cache" />
+            <argument type="service" id="service_container" />
             <argument type="service" id="annotation_reader" />
-            <argument>%kernel.project_dir%</argument>
             <argument type="service" id="ewll.db.entity-key-compiler" />
+            <argument>%ewll.db.bundles%</argument>
+            <argument>%kernel.project_dir%</argument>
         </service>
 
         <service id="ewll.db.migration.manager"
                  class="Ewll\DBBundle\Migration\MigrationManager">
+            <argument type="service" id="service_container" />
             <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
+            <argument>%ewll.db.bundles%</argument>
             <argument>%kernel.project_dir%</argument>
         </service>
 

@@ -3,20 +3,28 @@
 use Exception;
 use Ewll\DBBundle\DB\Client;
 use Ewll\DBBundle\Exception\ExecuteException;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class MigrationManager
 {
     private const TABLE_OR_VIEW_NOT_FOUND_ERROR_CODE = '42S02';
 
+    private $container;
     /** @var Client|null Default DB client */
     private $defaultDbClient;
-    /** @var string */
-    private $migrationsDir;
+    private $bundles;
+    private $projectDir;
 
-    public function __construct(Client $defaultDbClient = null, string $projectDir)
-    {
+    public function __construct(
+        ContainerInterface $container,
+        Client $defaultDbClient = null,
+        array $bundles,
+        string $projectDir
+    ) {
+        $this->container = $container;
         $this->defaultDbClient = $defaultDbClient;
-        $this->migrationsDir = implode(DIRECTORY_SEPARATOR, [$projectDir, 'src', 'Migration']);
+        $this->bundles = $bundles;
+        $this->projectDir = $projectDir;
     }
 
     public function getMigrationsInfo()
@@ -25,12 +33,20 @@ class MigrationManager
             throw new Exception('Default DB client is undefined');
         }
 
-        if (!is_dir($this->migrationsDir)) {
-            throw new Exception("Migrations directory not exists: {$this->migrationsDir}");
+        $bundleMigrationDirs = [];
+        $bundleMigrationDirs[] = implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Migration']);
+        foreach ($this->bundles as $bundle) {
+            $bundle = $this->container->get('kernel')->getBundle($bundle);
+            $bundleMigrationDirs[] = implode(DIRECTORY_SEPARATOR, [$bundle->getPath(), 'Migration']);
+        }
+        $files = [];
+        foreach ($bundleMigrationDirs as $bundleMigrationDir) {
+            if (is_dir($bundleMigrationDir)) {
+                $files = array_merge($files, glob("$bundleMigrationDir/Migration*.php"));
+            }
         }
 
         $migrations = [];
-        $files = glob("$this->migrationsDir/Migration*.php");
         foreach ($files as $file) {
             preg_match('/(Migration(\d+))\.php/', $file, $matches);
             $name = $matches[2];

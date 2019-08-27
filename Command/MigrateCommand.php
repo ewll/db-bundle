@@ -24,7 +24,7 @@ class MigrateCommand extends Command
     protected function configure()
     {
         $this
-            ->setName('ewll:db-bundle:migrate')
+            ->setName('ewll:db:migrate')
             ->addOption('all', null, InputOption::VALUE_NONE)
             ->addOption('up', null, InputOption::VALUE_OPTIONAL)
             ->addOption('down', null, InputOption::VALUE_OPTIONAL);

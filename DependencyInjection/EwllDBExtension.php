@@ -30,6 +30,7 @@ class EwllDBExtension extends Extension
             : new Reference($config['logger']['id']);
 
         $clientProvider = $container->register('ewll.db.client_provider', ClientProvider::class);
+        $container->setParameter('ewll.db.bundles', $config['bundles']);
 
         foreach ($config['connections'] as $name => $options) {
             $service = $container
