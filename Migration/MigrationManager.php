@@ -34,29 +34,41 @@ class MigrationManager
         }
 
         $bundleMigrationDirs = [];
-        $bundleMigrationDirs[] = implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Migration']);
+        $bundleMigrationDirs[] = [
+            'dir' => implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Migration']),
+            'namespace' => 'App',
+        ];
         foreach ($this->bundles as $bundle) {
             $bundle = $this->container->get('kernel')->getBundle($bundle);
-            $bundleMigrationDirs[] = implode(DIRECTORY_SEPARATOR, [$bundle->getPath(), 'Migration']);
+            $bundleMigrationDirs[] = [
+                'dir' => implode(DIRECTORY_SEPARATOR, [$bundle->getPath(), 'Migration']),
+                'namespace' => $bundle->getNamespace(),
+            ];
         }
         $files = [];
         foreach ($bundleMigrationDirs as $bundleMigrationDir) {
-            if (is_dir($bundleMigrationDir)) {
-                $files = array_merge($files, glob("$bundleMigrationDir/Migration*.php"));
+            if (is_dir($bundleMigrationDir['dir'])) {
+                $dirFiles = glob("{$bundleMigrationDir['dir']}/Migration*.php");
+                foreach ($dirFiles as $dirFile) {
+                    $files[] = [
+                        'name' => $dirFile,
+                        'namespace' => $bundleMigrationDir['namespace'],
+                    ];
+                }
             }
         }
 
         $migrations = [];
         foreach ($files as $file) {
-            preg_match('/(Migration(\d+))\.php/', $file, $matches);
+            preg_match('/(Migration(\d+))\.php/', $file['name'], $matches);
             $name = $matches[2];
-            $className = "\App\Migration\\$matches[1]";
-            require_once $file;
+            $className = '\\' . $file['namespace'] . '\Migration\\' . $matches[1];
+            require_once $file['name'];
             /** @var MigrationInterface $migration */
             $migration = new $className;
             $migrations[$name] = [
                 'name' => $name,
-                'file' => $file,
+                'file' => $file['name'],
                 'className' => $className,
                 'description' => $migration->getDescription(),
                 'migrated' => false,
