@@ -1,6 +1,7 @@
 <?php namespace Ewll\DBBundle\Repository;
 
 use Ewll\DBBundle\DB\Client;
+use RuntimeException;
 
 class Repository
 {
@@ -243,7 +244,7 @@ SQL;
             foreach ($sortBy as $item) {
                 $sortByStrings[] = "$prefix.{$item['field']} {$item['method']}";
             }
-            $sql .= "\nORDER BY ".implode(', ', $sortByStrings);
+            $sql .= "\nORDER BY " . implode(', ', $sortByStrings);
         }
 
         if (true === $one) {
@@ -268,5 +269,18 @@ SQL;
         }
 
         return $result;
+    }
+
+    public function delete($item, $force = false)
+    {
+        if (true === $force) {
+            $params = ['id' => $item->id];
+            $this->dbClient->prepare(<<<SQL
+DELETE FROM {$this->config->tableName} WHERE id = :id
+SQL
+            )->execute($params);
+        } else {
+            throw new RuntimeException('Not realised');
+        }
     }
 }

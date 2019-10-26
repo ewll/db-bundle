@@ -2,7 +2,8 @@
 
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\DB\Client;
-use Symfony\Component\Cache\Simple\FilesystemCache;
+use RuntimeException;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class RepositoryProvider
@@ -28,7 +29,7 @@ class RepositoryProvider
         $this->defaultDbClient = $defaultDbClient;
         $this->container = $container;
         $this->repositories = $repositories;
-        $this->cacher = new FilesystemCache();
+        $this->cacher = new FilesystemAdapter();
         $this->hydrator = $hydrator;
         $this->cacheKeyCompiler = $cacheKeyCompiler;
     }
@@ -76,8 +77,8 @@ class RepositoryProvider
             return $this->entityConfigs[$key];
         }
 
-        $entityConfig = $this->cacher->get($key);
-
+        $entityConfig = $this->cacher
+            ->get($key, function()use($key){throw new RuntimeException("Cache $key must be exists here");});
         $this->entityConfigs[$key] = $entityConfig;
 
         return $entityConfig;

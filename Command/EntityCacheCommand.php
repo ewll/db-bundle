@@ -5,7 +5,7 @@ use Ewll\DBBundle\Annotation\AnnotationInterface;
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\Repository\EntityConfig;
 use ReflectionClass;
-use Symfony\Component\Cache\Simple\FilesystemCache;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -33,7 +33,7 @@ class EntityCacheCommand extends Command
         $this->cacheKeyCompiler = $cacheKeyCompiler;
         $this->projectDir = $projectDir;
         $this->bundles = $bundles;
-        $this->cache = new FilesystemCache();
+        $this->cache = new FilesystemAdapter();
     }
 
     protected function configure()
@@ -83,7 +83,8 @@ class EntityCacheCommand extends Command
             $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
             //var_dump($entityConfig);
-            $this->cache->set($cacheKey, $entityConfig);
+            $this->cache->delete($cacheKey);
+            $this->cache->get($cacheKey, function()use($entityConfig){return $entityConfig;});
         }
     }
 }
