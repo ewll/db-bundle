@@ -5,6 +5,9 @@ use RuntimeException;
 
 class Repository
 {
+    const SORT_TYPE_SIMPLE = 1;
+    const SORT_TYPE_EXPRESSION = 2;
+
     /** @var EntityConfig */
     protected $config;
     /** @var Client */
@@ -177,14 +180,19 @@ SQL
         ];
     }
 
-    protected function getSelectList($prefix)
+    protected function getSelectArray($prefix)
     {
         $list = [];
         foreach ($this->config->fields as $fieldName => $type) {
             $list[] = "$prefix.$fieldName as {$prefix}_$fieldName";
         }
 
-        return implode(', ', $list);
+        return $list;
+    }
+
+    protected function getSelectList($prefix)
+    {
+        return implode(', ', $this->getSelectArray($prefix));
     }
 
     protected function getGroupByList($prefix)
@@ -206,20 +214,40 @@ SQL
         array $sortBy = []
     ) {
         $prefix = 't1';
+        $sqlData = [
+            'calcRows' => false,
+            'limit' => null,
+            'selectionItems' => $this->getSelectArray($prefix),
+            'tableName' => $this->config->tableName,
+            'prefix' => $prefix,
+            'where' => [],
+            'sortBy' => [],
+        ];
         $queryParams = [];
-        $sqlCalcFoundRows = '';
-        $limit = '';
-        if (null !== $page) {
-            $sqlCalcFoundRows = 'SQL_CALC_FOUND_ROWS';
+        if ($one) {
+            $sqlData['limit'] = '1';
+        } elseif (null !== $page) {
+            $sqlData['calcRows'] = true;
             $offset = ($page - 1) * $itemsPerPage;
-            $limit = "LIMIT $offset, $itemsPerPage";
+            $sqlData['limit'] = "$offset, $itemsPerPage";
+
+            if (count($sortBy) > 0) {
+                foreach ($sortBy as $item) {
+                    switch ($item['type']) {
+                        case self::SORT_TYPE_SIMPLE:
+                            $sortExpression = "$prefix.{$item['field']}";
+                            break;
+                        case self::SORT_TYPE_EXPRESSION:
+                            $sortExpression = str_replace('{prefix}', $sqlData['prefix'], $item['expression']);
+                            break;
+                        default:
+                            throw new RuntimeException('Unknown sort type.');
+                    }
+                    $sqlData['sortBy'][] = "$sortExpression {$item['method']}";
+                }
+            }
         }
-        $sql = <<<SQL
-SELECT $sqlCalcFoundRows {$this->getSelectList($prefix)}
-FROM {$this->config->tableName} $prefix
-SQL;
         if (count($params) > 0) {
-            $where = [];
             foreach ($params as $field => $value) {
                 if (is_array($value)) {
                     $valueItemPlaceholders = [];
@@ -229,28 +257,28 @@ SQL;
                         $queryParams[$valueItemName] = $valueItem;
                     }
                     $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
-                    $where[] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
+                    $sqlData['where'][] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
                 } else {
                     $queryParams[$field] = $value;
-                    $where[] = "$prefix.$field = :$field";
+                    $sqlData['where'][] = "$prefix.$field = :$field";
                 }
             }
-            $whereStr = implode(' AND ', $where);
-            $sql .= "\nWHERE $whereStr";
         }
 
-        if (count($sortBy) > 0) {
-            $sortByStrings = [];
-            foreach ($sortBy as $item) {
-                $sortByStrings[] = "$prefix.{$item['field']} {$item['method']}";
-            }
-            $sql .= "\nORDER BY " . implode(', ', $sortByStrings);
+        $sql = 'SELECT';
+        if ($sqlData['calcRows']) {
+            $sql .= ' SQL_CALC_FOUND_ROWS';
         }
-
-        if (true === $one) {
-            $sql .= "\nLIMIT 1";
-        } else {
-            $sql .= "\n$limit";
+        $sql .= ' '.implode(', ', $sqlData['selectionItems']);
+        $sql .= "\nFROM {$sqlData['tableName']} {$sqlData['prefix']}";
+        if (count($sqlData['where']) > 0) {
+            $sql .= "\nWHERE ".implode(' AND ', $sqlData['where']);
+        }
+        if (count($sqlData['sortBy']) > 0) {
+            $sql .= "\nORDER BY " . implode(', ', $sqlData['sortBy']);
+        }
+        if (null !== $sqlData['limit']) {
+            $sql .= "\nLIMIT ".$sqlData['limit'];
         }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
