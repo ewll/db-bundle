@@ -54,6 +54,8 @@ class MigrateCommand extends Command
         } else {
             $this->writeInfo($style, $migrations);
         }
+
+        return 0;
     }
 
     private function writeInfo(SymfonyStyle $style, array $migrations)

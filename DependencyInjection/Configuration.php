@@ -13,10 +13,8 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('ewll_db');
-
-        $rootNode
+        $treeBuilder = new TreeBuilder('ewll_user');
+        $treeBuilder->getRootNode()
             ->fixXmlConfig('shard')
             ->fixXmlConfig('connection')
             ->children()

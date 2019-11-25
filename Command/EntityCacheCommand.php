@@ -59,6 +59,8 @@ class EntityCacheCommand extends Command
         foreach ($entityDirs as $entityDir) {
             $this->handleDir($entityDir);
         }
+
+        return 0;
     }
 
     private function handleDir(array $entityDir)
