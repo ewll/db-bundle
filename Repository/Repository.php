@@ -1,12 +1,15 @@
 <?php namespace Ewll\DBBundle\Repository;
 
 use Ewll\DBBundle\DB\Client;
+use LogicException;
 use RuntimeException;
 
 class Repository
 {
     const SORT_TYPE_SIMPLE = 1;
     const SORT_TYPE_EXPRESSION = 2;
+
+    const FOR_UPDATE = true;
 
     /** @var EntityConfig */
     protected $config;
@@ -58,13 +61,13 @@ class Repository
         return $items;
     }
 
-    public function findById(int $id)
+    public function findById(int $id, bool $isForUpdate = false)
     {
         if (isset($this->cache[$id])) {
             return $this->cache[$id];
         }
 
-        $item = $this->find(true, ['id' => $id]);
+        $item = $this->find(true, ['id' => $id], null, null, null, [], $isForUpdate);
 
         return $item;
     }
@@ -211,7 +214,8 @@ SQL
         string $indexBy = null,
         int $page = null,
         int $itemsPerPage = null,
-        array $sortBy = []
+        array $sortBy = [],
+        bool $isForUpdate = false
     ) {
         $prefix = 't1';
         $sqlData = [
@@ -222,6 +226,7 @@ SQL
             'prefix' => $prefix,
             'where' => [],
             'sortBy' => [],
+            'isForUpdate' => $isForUpdate,
         ];
         $queryParams = [];
         if ($one) {
@@ -249,7 +254,16 @@ SQL
         }
         if (count($params) > 0) {
             foreach ($params as $field => $value) {
-                if (is_array($value)) {
+                if ($value instanceof FilterExpression) {//@TODO
+                    $queryParams[$value->getParam1()] = $value->getParam2();
+                    $sqlData['where'][] = sprintf(
+                        '%s.%s %s :%s',
+                        $prefix,
+                        $value->getParam1(),
+                        $value->getAction(),
+                        $value->getParam1()
+                    );
+                } elseif (is_array($value)) {
                     $valueItemPlaceholders = [];
                     foreach ($value as $valueKey => $valueItem) {
                         $valueItemName = "{$field}_{$valueKey}";
@@ -269,16 +283,19 @@ SQL
         if ($sqlData['calcRows']) {
             $sql .= ' SQL_CALC_FOUND_ROWS';
         }
-        $sql .= ' '.implode(', ', $sqlData['selectionItems']);
+        $sql .= ' ' . implode(', ', $sqlData['selectionItems']);
         $sql .= "\nFROM {$sqlData['tableName']} {$sqlData['prefix']}";
         if (count($sqlData['where']) > 0) {
-            $sql .= "\nWHERE ".implode(' AND ', $sqlData['where']);
+            $sql .= "\nWHERE " . implode(' AND ', $sqlData['where']);
         }
         if (count($sqlData['sortBy']) > 0) {
             $sql .= "\nORDER BY " . implode(', ', $sqlData['sortBy']);
         }
         if (null !== $sqlData['limit']) {
-            $sql .= "\nLIMIT ".$sqlData['limit'];
+            $sql .= "\nLIMIT " . $sqlData['limit'];
+        }
+        if (true !== $sqlData['isForUpdate']) {
+            $sql .= "\nFOR UPDATE";
         }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
