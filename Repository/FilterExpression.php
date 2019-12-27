@@ -4,12 +4,14 @@ class FilterExpression
 {
     const ACTION_EQUAL = '=';
     const ACTION_NOT_EQUAL = '<>';
+    const ACTION_IS_NULL = 'IS NULL';
+    const ACTION_IS_NOT_NULL = 'IS NOT NULL';
 
     private $action;
     private $param1;
     private $param2;
 
-    public function __construct(string $action, $param1, $param2)//@TODO
+    public function __construct(string $action, $param1, $param2 = null)//@TODO
     {
         $this->action = $action;
         $this->param1 = $param1;

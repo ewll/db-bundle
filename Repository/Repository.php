@@ -1,6 +1,8 @@
 <?php namespace Ewll\DBBundle\Repository;
 
 use Ewll\DBBundle\DB\Client;
+use Ewll\DBBundle\Exception\ExecuteException;
+use Ewll\DBBundle\Query\QueryBuilder;
 use LogicException;
 use RuntimeException;
 
@@ -44,9 +46,12 @@ class Repository
 
     public function findOneBy(array $params)
     {
-        $item = $this->find(true, $params);
+        $qb = new QueryBuilder($this);
+        $qb
+            ->setLimit(1)
+            ->addConditions($params);
 
-        return $item;
+        return $this->find($qb);
     }
 
     public function findBy(
@@ -55,10 +60,18 @@ class Repository
         int $page = null,
         int $itemsPerPage = null,
         array $sortBy = []
-    ) {
-        $items = $this->find(false, $params, $indexBy, $page, $itemsPerPage, $sortBy);
+    )
+    {
+        $qb = new QueryBuilder($this);
+        $qb
+            ->addConditions($params)
+            ->setSort($sortBy)
+            ->setIndex($indexBy);
+        if (null !== $page) {
+            $qb->setPage($page, $itemsPerPage);
+        }
 
-        return $items;
+        return $this->find($qb);
     }
 
     public function findById(int $id, bool $isForUpdate = false)
@@ -67,16 +80,23 @@ class Repository
             return $this->cache[$id];
         }
 
-        $item = $this->find(true, ['id' => $id], null, null, null, [], $isForUpdate);
+        $qb = new QueryBuilder($this);
+        $qb
+            ->addConditions(['id' => $id])
+            ->setLimit(1);
+        if (true === $isForUpdate) {
+            $qb->setFlag(QueryBuilder::FLAG_FOR_UPDATE);
+        }
 
-        return $item;
+        return $this->find($qb);
     }
 
     public function findAll(string $indexBy = null)
     {
-        $items = $this->find(false, [], $indexBy);
+        $qb = new QueryBuilder($this);
+        $qb->setIndex($indexBy);
 
-        return $items;
+        return $this->find($qb);
     }
 
     public function create($item, $isAutoincrement = true)
@@ -183,7 +203,7 @@ SQL
         ];
     }
 
-    protected function getSelectArray($prefix)
+    public function getSelectArray($prefix)
     {
         $list = [];
         foreach ($this->config->fields as $fieldName => $type) {
@@ -191,6 +211,11 @@ SQL
         }
 
         return $list;
+    }
+
+    public function getEntityConfig(): EntityConfig
+    {
+        return $this->config;
     }
 
     protected function getSelectList($prefix)
@@ -208,61 +233,37 @@ SQL
         return implode(', ', $list);
     }
 
-    private function find(
-        bool $one,
-        array $params,
-        string $indexBy = null,
-        int $page = null,
-        int $itemsPerPage = null,
-        array $sortBy = [],
-        bool $isForUpdate = false
-    ) {
-        $prefix = 't1';
-        $sqlData = [
-            'calcRows' => false,
-            'limit' => null,
-            'selectionItems' => $this->getSelectArray($prefix),
-            'tableName' => $this->config->tableName,
-            'prefix' => $prefix,
-            'where' => [],
-            'sortBy' => [],
-            'isForUpdate' => $isForUpdate,
-        ];
+    public function find(QueryBuilder $queryBuilder)
+    {
+        $prefix = $queryBuilder->getPrefix();
         $queryParams = [];
-        if ($one) {
-            $sqlData['limit'] = '1';
-        } elseif (null !== $page) {
-            $sqlData['calcRows'] = true;
-            $offset = ($page - 1) * $itemsPerPage;
-            $sqlData['limit'] = "$offset, $itemsPerPage";
-
-            if (count($sortBy) > 0) {
-                foreach ($sortBy as $item) {
-                    switch ($item['type']) {
-                        case self::SORT_TYPE_SIMPLE:
-                            $sortExpression = "$prefix.{$item['field']}";
-                            break;
-                        case self::SORT_TYPE_EXPRESSION:
-                            $sortExpression = str_replace('{prefix}', $sqlData['prefix'], $item['expression']);
-                            break;
-                        default:
-                            throw new RuntimeException('Unknown sort type.');
-                    }
-                    $sqlData['sortBy'][] = "$sortExpression {$item['method']}";
-                }
-            }
-        }
-        if (count($params) > 0) {
-            foreach ($params as $field => $value) {
+        $compiledConditions = [];
+        if ($queryBuilder->hasConditions()) {
+            $placeholderIncrement = 1;
+            foreach ($queryBuilder->getConditions() as $field => $value) {
                 if ($value instanceof FilterExpression) {//@TODO
-                    $queryParams[$value->getParam1()] = $value->getParam2();
-                    $sqlData['where'][] = sprintf(
-                        '%s.%s %s :%s',
-                        $prefix,
-                        $value->getParam1(),
-                        $value->getAction(),
-                        $value->getParam1()
-                    );
+                    $placeholderIncrement++;
+                    if (in_array($value->getAction(), [FilterExpression::ACTION_EQUAL, FilterExpression::ACTION_NOT_EQUAL], true)) {
+                        $placeholder = "{$value->getParam1()}_{$placeholderIncrement}";
+                        $queryParams[$placeholder] = $value->getParam2();
+                        $compiledConditions[] = sprintf(
+                            '%s.%s %s :%s',
+                            $prefix,
+                            $value->getParam1(),
+                            $value->getAction(),
+                            $placeholder
+                        );
+                    } elseif (in_array($value->getAction(), [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL], true)) {
+                        $param1 = $value->getParam1();
+                        $compiledConditions[] = sprintf(
+                            '%s.%s %s',
+                            is_array($param1) ? $param1[0] : $prefix,
+                            is_array($param1) ? $param1[1] : $param1,
+                            $value->getAction(),
+                        );
+                    } else {
+                        throw new RuntimeException('Unknown FilterExpression action');
+                    }
                 } elseif (is_array($value)) {
                     $valueItemPlaceholders = [];
                     foreach ($value as $valueKey => $valueItem) {
@@ -271,43 +272,65 @@ SQL
                         $queryParams[$valueItemName] = $valueItem;
                     }
                     $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
-                    $sqlData['where'][] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
+                    $compiledConditions[] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
                 } else {
                     $queryParams[$field] = $value;
-                    $sqlData['where'][] = "$prefix.$field = :$field";
+                    $compiledConditions[] = "$prefix.$field = :$field";
                 }
+            }
+        }
+        $compiledSort = [];
+        if ($queryBuilder->hasSort()) {
+            foreach ($queryBuilder->getSort() as $item) {
+                switch ($item['type']) {
+                    case self::SORT_TYPE_SIMPLE:
+                        $sortExpression = "$prefix.{$item['field']}";
+                        break;
+                    case self::SORT_TYPE_EXPRESSION:
+                        $sortExpression = str_replace('{prefix}', $prefix, $item['expression']);
+                        break;
+                    default:
+                        throw new RuntimeException('Unknown sort type.');
+                }
+                $compiledSort[] = "$sortExpression {$item['method']}";
             }
         }
 
         $sql = 'SELECT';
-        if ($sqlData['calcRows']) {
+        if ($queryBuilder->hasFlag(QueryBuilder::FLAG_CALC_ROWS)) {
             $sql .= ' SQL_CALC_FOUND_ROWS';
         }
-        $sql .= ' ' . implode(', ', $sqlData['selectionItems']);
-        $sql .= "\nFROM {$sqlData['tableName']} {$sqlData['prefix']}";
-        if (count($sqlData['where']) > 0) {
-            $sql .= "\nWHERE " . implode(' AND ', $sqlData['where']);
+        $sql .= ' ' . implode(', ', $queryBuilder->getSelectionItems());
+        $sql .= "\nFROM {$queryBuilder->getTableName()} {$prefix}";
+        foreach ($queryBuilder->getJoins() as $join) {
+            $sql .= "\n{$join[3]} JOIN {$join[0]} {$join[1]} ON {$join[2]}";
         }
-        if (count($sqlData['sortBy']) > 0) {
-            $sql .= "\nORDER BY " . implode(', ', $sqlData['sortBy']);
+        if ($queryBuilder->hasConditions()) {
+            $sql .= "\nWHERE " . implode(' AND ', $compiledConditions);
         }
-        if (null !== $sqlData['limit']) {
-            $sql .= "\nLIMIT " . $sqlData['limit'];
+        if ($queryBuilder->hasSort()) {
+            $sql .= "\nORDER BY " . implode(', ', $compiledSort);
         }
-        if (true !== $sqlData['isForUpdate']) {
+        if (null !== $queryBuilder->getLimit()) {
+            $sql .= "\nLIMIT " . $queryBuilder->getLimit();
+        }
+        if (null !== $queryBuilder->getOffset()) {
+            $sql .= "\nOFFSET " . $queryBuilder->getOffset();
+        }
+        if ($queryBuilder->hasFlag(QueryBuilder::FLAG_FOR_UPDATE)) {
             $sql .= "\nFOR UPDATE";
         }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
         $transformationOptions = $this->getFieldTransformationOptions();
-        if (true === $one) {
+        if (1 === $queryBuilder->getLimit()) {
             $result = $this->hydrator->hydrateOne($this->config, $prefix, $statement, $transformationOptions);
             if (null !== $result) {
                 $this->cache[$result->id] = $result;
             }
         } else {
             $result = $this->hydrator
-                ->hydrateMany($this->config, $prefix, $statement, $transformationOptions, $indexBy);
+                ->hydrateMany($this->config, $prefix, $statement, $transformationOptions, $queryBuilder->getIndex());
             foreach ($result as $item) {
                 $this->cache[$item->id] = $item;
             }
