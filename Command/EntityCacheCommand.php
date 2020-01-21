@@ -18,14 +18,15 @@ class EntityCacheCommand extends Command
     private $cacheKeyCompiler;
     private $bundles;
     private $projectDir;
-    private $cache;
+    private $cacheDir;
 
     public function __construct(
         ContainerInterface $container,
         Reader $annotationReader,
         CacheKeyCompiler $cacheKeyCompiler,
         array $bundles,
-        string $projectDir
+        string $projectDir,
+        string $cacheDir
     ) {
         parent::__construct();
         $this->container = $container;
@@ -33,7 +34,7 @@ class EntityCacheCommand extends Command
         $this->cacheKeyCompiler = $cacheKeyCompiler;
         $this->projectDir = $projectDir;
         $this->bundles = $bundles;
-        $this->cache = new FilesystemAdapter();
+        $this->cacheDir = $cacheDir;
     }
 
     protected function configure()
@@ -44,6 +45,9 @@ class EntityCacheCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $cacheDir = implode(DIRECTORY_SEPARATOR, [$this->cacheDir, 'Ewll', 'EntityCache']);
+        $this->cache = new FilesystemAdapter('', 0, $cacheDir);
+
         $entityDirs = [];
         $entityDirs[] = [
             'dir' => implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Entity']),

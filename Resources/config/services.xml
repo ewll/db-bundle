@@ -20,6 +20,7 @@
             <argument type="service" id="ewll.db.entity-key-compiler" />
             <argument>%ewll.db.bundles%</argument>
             <argument>%kernel.project_dir%</argument>
+            <argument>%kernel.cache_dir%</argument>
         </service>
 
         <service id="ewll.db.migration.manager"
