@@ -46,7 +46,7 @@ class EntityCacheCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $cacheDir = implode(DIRECTORY_SEPARATOR, [$this->cacheDir, 'Ewll', 'EntityCache']);
-        $this->cache = new FilesystemAdapter('', 0, $cacheDir);
+        $fileSystemCache = new FilesystemAdapter('', 0, $cacheDir);
 
         $entityDirs = [];
         $entityDirs[] = [
@@ -61,13 +61,13 @@ class EntityCacheCommand extends Command
             ];
         }
         foreach ($entityDirs as $entityDir) {
-            $this->handleDir($entityDir);
+            $this->handleDir($entityDir, $fileSystemCache);
         }
 
         return 0;
     }
 
-    private function handleDir(array $entityDir)
+    private function handleDir(array $entityDir, FilesystemAdapter $fileSystemCache)
     {
         $files = glob("{$entityDir['dir']}/*.php");
         foreach ($files as $file) {
@@ -88,9 +88,8 @@ class EntityCacheCommand extends Command
             }
             $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
-            //var_dump($entityConfig);
-            $this->cache->delete($cacheKey);
-            $this->cache->get($cacheKey, function()use($entityConfig){return $entityConfig;});
+            $fileSystemCache->delete($cacheKey);
+            $fileSystemCache->get($cacheKey, function()use($entityConfig){return $entityConfig;});
         }
     }
 }
