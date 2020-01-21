@@ -14,7 +14,7 @@
   ],
   "require": {
     "php": "^7.2",
-    "symfony/cache": "4.0^"
+    "symfony/cache": "^4.0"
 
   },
   "autoload": {
