@@ -38,6 +38,7 @@
             <argument type="service" id="ewll.db.client.default" on-invalid="null"/>
             <argument type="service" id="ewll.db.hydrator"/>
             <argument type="service" id="ewll.db.entity-key-compiler"/>
+            <argument>%kernel.cache_dir%</argument>
         </service>
 
         <service id="ewll.db.entity-key-compiler" class="Ewll\DBBundle\DB\CacheKeyCompiler">

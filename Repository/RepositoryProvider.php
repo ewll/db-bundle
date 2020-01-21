@@ -12,8 +12,8 @@ class RepositoryProvider
     private $repositories;
     /** @var Repository[] */
     private $cache = [];
-    private $cacher;
     private $hydrator;
+    private $cacheDir;
 
     private $entityConfigs = [];
     private $cacheKeyCompiler;
@@ -23,19 +23,20 @@ class RepositoryProvider
         iterable $repositories,
         Client $defaultDbClient,
         Hydrator $hydrator,
-        CacheKeyCompiler $cacheKeyCompiler
+        CacheKeyCompiler $cacheKeyCompiler,
+        string $cacheDir
     ) {
         $this->defaultDbClient = $defaultDbClient;
         $this->container = $container;
         $this->repositories = $repositories;
-        $this->cacher = new FilesystemCache();
         $this->hydrator = $hydrator;
         $this->cacheKeyCompiler = $cacheKeyCompiler;
+        $this->cacheDir = $cacheDir;
     }
 
     public function get(string $entityClass): Repository
     {
-        $repositoryClassName = substr(strrchr($entityClass, '\\'), 1).'Repository';
+        $repositoryClassName = substr(strrchr($entityClass, '\\'), 1) . 'Repository';
         if (isset($this->cache[$repositoryClassName])) {
             return $this->cache[$repositoryClassName];
         }
@@ -70,13 +71,17 @@ class RepositoryProvider
 
     private function getEntityConfig(string $entityClass): EntityConfig
     {
+        //@TODO DUPLICATE
+        $cacheDir = implode(DIRECTORY_SEPARATOR, [$this->cacheDir, 'Ewll', 'EntityCache']);
+        $fileSystemCache = new FilesystemCache('', 0, $cacheDir);
+
         $key = $this->cacheKeyCompiler->compile($entityClass);
 
         if (isset($this->entityConfigs[$key])) {
             return $this->entityConfigs[$key];
         }
 
-        $entityConfig = $this->cacher->get($key);
+        $entityConfig = $fileSystemCache->get($key);
 
         $this->entityConfigs[$key] = $entityConfig;
 
