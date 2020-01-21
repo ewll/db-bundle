@@ -18,6 +18,7 @@
             <argument type="service" id="annotation_reader" />
             <argument>%kernel.project_dir%</argument>
             <argument type="service" id="ewll.db.entity-key-compiler" />
+            <argument>%kernel.cache_dir%</argument>
         </service>
 
         <service id="ewll.db.migration.manager"

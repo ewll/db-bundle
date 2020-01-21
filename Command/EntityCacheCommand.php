@@ -14,19 +14,20 @@ class EntityCacheCommand extends Command
 {
     private $annotationReader;
     private $entityDir;
-    private $cache;
     private $cacheKeyCompiler;
+    private $cacheDir;
 
     public function __construct(
         Reader $annotationReader,
         string $projectDir,
-        CacheKeyCompiler $cacheKeyCompiler
+        CacheKeyCompiler $cacheKeyCompiler,
+        string $cacheDir
     ) {
         parent::__construct();
         $this->annotationReader = $annotationReader;
         $this->entityDir = implode(DIRECTORY_SEPARATOR, [$projectDir, 'src', 'Entity']);
-        $this->cache = new FilesystemCache();
         $this->cacheKeyCompiler = $cacheKeyCompiler;
+        $this->cacheDir = $cacheDir;
     }
 
     protected function configure()
@@ -37,6 +38,9 @@ class EntityCacheCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $cacheDir = implode(DIRECTORY_SEPARATOR, [$this->cacheDir, 'Ewll', 'EntityCache']);
+        $fileSystemCache = new FilesystemCache('', 0, $cacheDir);
+
         $files = glob("$this->entityDir/*.php");
         foreach ($files as $file) {
             preg_match('/([a-z]+)\.php/i', $file, $matches);
@@ -56,7 +60,7 @@ class EntityCacheCommand extends Command
             }
             $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
-            $this->cache->set($cacheKey, $entityConfig);
+            $fileSystemCache->set($cacheKey, $entityConfig);
         }
     }
 }
