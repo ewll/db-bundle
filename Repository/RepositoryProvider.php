@@ -1,5 +1,6 @@
 <?php namespace Ewll\DBBundle\Repository;
 
+use Ewll\DBBundle\Cache\Cachier;
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\DB\Client;
 use RuntimeException;
@@ -15,6 +16,7 @@ class RepositoryProvider
     private $cache = [];
     private $cacher;
     private $hydrator;
+    private $cachier;
 
     private $entityConfigs = [];
     private $cacheKeyCompiler;
@@ -24,7 +26,8 @@ class RepositoryProvider
         iterable $repositories,
         Client $defaultDbClient,
         Hydrator $hydrator,
-        CacheKeyCompiler $cacheKeyCompiler
+        CacheKeyCompiler $cacheKeyCompiler,
+        Cachier $cachier
     ) {
         $this->defaultDbClient = $defaultDbClient;
         $this->container = $container;
@@ -32,6 +35,7 @@ class RepositoryProvider
         $this->cacher = new FilesystemAdapter();
         $this->hydrator = $hydrator;
         $this->cacheKeyCompiler = $cacheKeyCompiler;
+        $this->cachier = $cachier;
     }
 
     public function get(string $entityClass): Repository
@@ -77,8 +81,7 @@ class RepositoryProvider
             return $this->entityConfigs[$key];
         }
 
-        $entityConfig = $this->cacher
-            ->get($key, function()use($key){throw new RuntimeException("Cache $key must be exists here");});
+        $entityConfig = $this->cachier->get($key);
         $this->entityConfigs[$key] = $entityConfig;
 
         return $entityConfig;

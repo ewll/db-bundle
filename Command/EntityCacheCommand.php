@@ -2,6 +2,7 @@
 
 use Doctrine\Common\Annotations\Reader;
 use Ewll\DBBundle\Annotation\AnnotationInterface;
+use Ewll\DBBundle\Cache\Cachier;
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\Repository\EntityConfig;
 use ReflectionClass;
@@ -16,25 +17,25 @@ class EntityCacheCommand extends Command
     private $container;
     private $annotationReader;
     private $cacheKeyCompiler;
+    private $cachier;
     private $bundles;
     private $projectDir;
-    private $cacheDir;
 
     public function __construct(
         ContainerInterface $container,
         Reader $annotationReader,
         CacheKeyCompiler $cacheKeyCompiler,
+        Cachier $cachier,
         array $bundles,
-        string $projectDir,
-        string $cacheDir
+        string $projectDir
     ) {
         parent::__construct();
         $this->container = $container;
         $this->annotationReader = $annotationReader;
         $this->cacheKeyCompiler = $cacheKeyCompiler;
-        $this->projectDir = $projectDir;
+        $this->cachier = $cachier;
         $this->bundles = $bundles;
-        $this->cacheDir = $cacheDir;
+        $this->projectDir = $projectDir;
     }
 
     protected function configure()
@@ -45,9 +46,6 @@ class EntityCacheCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $cacheDir = implode(DIRECTORY_SEPARATOR, [$this->cacheDir, 'Ewll', 'EntityCache']);
-        $fileSystemCache = new FilesystemAdapter('', 0, $cacheDir);
-
         $entityDirs = [];
         $entityDirs[] = [
             'dir' => implode(DIRECTORY_SEPARATOR, [$this->projectDir, 'src', 'Entity']),
@@ -61,13 +59,13 @@ class EntityCacheCommand extends Command
             ];
         }
         foreach ($entityDirs as $entityDir) {
-            $this->handleDir($entityDir, $fileSystemCache);
+            $this->handleDir($entityDir);
         }
 
         return 0;
     }
 
-    private function handleDir(array $entityDir, FilesystemAdapter $fileSystemCache)
+    private function handleDir(array $entityDir)
     {
         $files = glob("{$entityDir['dir']}/*.php");
         foreach ($files as $file) {
@@ -88,8 +86,7 @@ class EntityCacheCommand extends Command
             }
             $cacheKey = $this->cacheKeyCompiler->compile($className);
             $entityConfig = new EntityConfig($className, $tableName, $fields);
-            $fileSystemCache->delete($cacheKey);
-            $fileSystemCache->get($cacheKey, function()use($entityConfig){return $entityConfig;});
+            $this->cachier->set($cacheKey, $entityConfig);
         }
     }
 }
