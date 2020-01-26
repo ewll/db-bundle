@@ -1,5 +1,6 @@
 <?php namespace Ewll\DBBundle\Form\ChoiceList\Loader;
 
+use Ewll\DBBundle\Query\QueryBuilder;
 use Ewll\DBBundle\Repository\Repository;
 use Symfony\Component\Form\ChoiceList\ArrayChoiceList;
 use Symfony\Component\Form\ChoiceList\Loader\ChoiceLoaderInterface;
@@ -16,17 +17,20 @@ class EntityChoiceLoader implements ChoiceLoaderInterface
     private $repository;
     private $placeholder;
     private $translationDomain;
+    private $conditions;
 
     public function __construct(
         TranslatorInterface $translator,
         Repository $repository,
-        string $placeholder,
-        string $translationDomain
+        string $placeholder = null,
+        string $translationDomain = null,
+        array $conditions = []
     ) {
         $this->translator = $translator;
         $this->repository = $repository;
         $this->placeholder = $placeholder;
         $this->translationDomain = $translationDomain;
+        $this->conditions = $conditions;
     }
 
     /** {@inheritdoc} */
@@ -36,11 +40,19 @@ class EntityChoiceLoader implements ChoiceLoaderInterface
             return $this->choiceList;
         }
 
-        $items = $this->repository->findAll();
+        $qb = new QueryBuilder($this->repository, QueryBuilder::DEFAULT_PREFIX, ['id']);
+        $qb
+            ->addConditions($this->conditions);
+        $items = $this->repository->find($qb);
+
         $choices = [];
         foreach ($items as $item) {
-            $placeholder = str_replace(self::PLACEHOLDER, $item->id, $this->placeholder);
-            $text = $this->translator->trans($placeholder, [], $this->translationDomain);
+            if (null === $this->placeholder) {
+                $text = $item->id;
+            } else {
+                $placeholder = str_replace(self::PLACEHOLDER, $item->id, $this->placeholder);
+                $text = $this->translator->trans($placeholder, [], $this->translationDomain);
+            }
             $choices[$text] = $item->id;
         }
 

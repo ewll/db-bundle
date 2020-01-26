@@ -44,7 +44,10 @@ class Hydrator
         $item = new $entityConfig->class;
 
         foreach ($entityConfig->fields as $fieldName => $type) {
-            $item->$fieldName = $type->transformToView($data["{$prefix}_$fieldName"], $transformationOptions);
+            $placeholder = "{$prefix}_$fieldName";
+            if (isset($data[$placeholder])) {
+                $item->$fieldName = $type->transformToView($data[$placeholder], $transformationOptions);
+            }
         }
 
         return $item;

@@ -30,7 +30,7 @@ class Configuration implements ConfigurationInterface
                         ->children()
                             ->scalarNode('database')->isRequired()->cannotBeEmpty()->end()
                             ->scalarNode('username')->isRequired()->cannotBeEmpty()->end()
-                            ->scalarNode('password')->isRequired()->cannotBeEmpty()->end()
+                            ->scalarNode('password')->isRequired()->defaultValue('')->end()
                             ->scalarNode('host')->cannotBeEmpty()->defaultValue('127.0.0.1')->end()
                             ->scalarNode('port')->cannotBeEmpty()->defaultValue('3306')->end()
                             ->scalarNode('charset')->cannotBeEmpty()->defaultValue('utf8mb4')->end()

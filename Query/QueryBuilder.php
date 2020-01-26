@@ -10,6 +10,10 @@ class QueryBuilder
 
     const DEFAULT_PREFIX = 't1';
 
+    const JOIN_TYPE_INNER = 'INNER';
+    const JOIN_TYPE_LEFT = 'LEFT';
+    const JOIN_TYPE_RIGHT = 'RIGHT';
+
     /** @var array */
     private $flags = [];
     /** @var array */
@@ -29,10 +33,13 @@ class QueryBuilder
     /** @var string|null */
     private $index;
 
-    public function __construct(Repository $repository, string $prefix = self::DEFAULT_PREFIX)
-    {
+    public function __construct(
+        Repository $repository,
+        string $prefix = self::DEFAULT_PREFIX,
+        array $selectionItems = []
+    ) {
         $this->from = [$repository->getEntityConfig()->tableName, $prefix];
-        $this->selectionItems = $repository->getSelectArray($prefix);
+        $this->selectionItems = $repository->getSelectArray($prefix, $selectionItems);
     }
 
     public function setFlag(int $flag): self
@@ -61,8 +68,12 @@ class QueryBuilder
         return $this->from[1];
     }
 
-    public function addJoin(string $tableName, string $prefix, string $condition, string $type = 'INNER'): self
-    {
+    public function addJoin(
+        string $tableName,
+        string $prefix,
+        string $condition,
+        string $type = self::JOIN_TYPE_INNER
+    ): self {
         $this->joins[] = [$tableName, $prefix, $condition, $type];
         return $this;
     }

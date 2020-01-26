@@ -203,11 +203,13 @@ SQL
         ];
     }
 
-    public function getSelectArray($prefix)
+    public function getSelectArray($prefix, array $items = [])
     {
         $list = [];
         foreach ($this->config->fields as $fieldName => $type) {
-            $list[] = "$prefix.$fieldName as {$prefix}_$fieldName";
+            if (count($items) === 0 || in_array($fieldName, $items, true)) {
+                $list[] = "$prefix.$fieldName as {$prefix}_$fieldName";
+            }
         }
 
         return $list;
@@ -239,7 +241,7 @@ SQL
         $queryParams = [];
         $compiledConditions = [];
         if ($queryBuilder->hasConditions()) {
-            $placeholderIncrement = 1;
+            $placeholderIncrement = 0;
             foreach ($queryBuilder->getConditions() as $field => $value) {
                 if ($value instanceof FilterExpression) {//@TODO
                     $placeholderIncrement++;
@@ -252,6 +254,22 @@ SQL
                             $value->getParam1(),
                             $value->getAction(),
                             $placeholder
+                        );
+                    } elseif (in_array($value->getAction(), [FilterExpression::ACTION_IN, FilterExpression::ACTION_NOT_IN], true)) {
+                        $prePlaceholder = "{$value->getParam1()}_{$placeholderIncrement}";
+                        $placeholders = [];
+                        foreach ($value->getParam2() as $elKey => $elValue) {
+                            $placeholder = "{$prePlaceholder}_$elKey";
+                            $placeholders[] = ":{$placeholder}";
+                            $queryParams[$placeholder] = $elValue;
+                        }
+
+                        $compiledConditions[] = sprintf(
+                            '%s.%s %s (%s)',
+                            $prefix,
+                            $value->getParam1(),
+                            $value->getAction(),
+                            implode(',', $placeholders)
                         );
                     } elseif (in_array($value->getAction(), [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL], true)) {
                         $param1 = $value->getParam1();
@@ -320,6 +338,10 @@ SQL
         if ($queryBuilder->hasFlag(QueryBuilder::FLAG_FOR_UPDATE)) {
             $sql .= "\nFOR UPDATE";
         }
+//        if ($queryBuilder->getTableName() === 'product') {
+//            var_dump($queryParams);
+//            exit($sql);
+//        }
         $statement = $this->dbClient->prepare($sql)->execute($queryParams);
 
         $transformationOptions = $this->getFieldTransformationOptions();
