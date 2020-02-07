@@ -60,8 +60,7 @@ class Repository
         int $page = null,
         int $itemsPerPage = null,
         array $sortBy = []
-    )
-    {
+    ) {
         $qb = new QueryBuilder($this);
         $qb
             ->addConditions($params)
@@ -245,7 +244,15 @@ SQL
             foreach ($queryBuilder->getConditions() as $field => $value) {
                 if ($value instanceof FilterExpression) {//@TODO
                     $placeholderIncrement++;
-                    if (in_array($value->getAction(), [FilterExpression::ACTION_EQUAL, FilterExpression::ACTION_NOT_EQUAL], true)) {
+                    $singleFilters = [
+                        FilterExpression::ACTION_EQUAL,
+                        FilterExpression::ACTION_NOT_EQUAL,
+                        FilterExpression::ACTION_GREATER,
+                        FilterExpression::ACTION_LESS
+                    ];
+                    $arrayFilters = [FilterExpression::ACTION_IN, FilterExpression::ACTION_NOT_IN];
+                    $nullFilters = [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL];
+                    if (in_array($value->getAction(), $singleFilters, true)) {
                         $placeholder = "{$value->getParam1()}_{$placeholderIncrement}";
                         $queryParams[$placeholder] = $value->getParam2();
                         $compiledConditions[] = sprintf(
@@ -255,7 +262,7 @@ SQL
                             $value->getAction(),
                             $placeholder
                         );
-                    } elseif (in_array($value->getAction(), [FilterExpression::ACTION_IN, FilterExpression::ACTION_NOT_IN], true)) {
+                    } elseif (in_array($value->getAction(), $arrayFilters, true)) {
                         $prePlaceholder = "{$value->getParam1()}_{$placeholderIncrement}";
                         $placeholders = [];
                         foreach ($value->getParam2() as $elKey => $elValue) {
@@ -271,7 +278,7 @@ SQL
                             $value->getAction(),
                             implode(',', $placeholders)
                         );
-                    } elseif (in_array($value->getAction(), [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL], true)) {
+                    } elseif (in_array($value->getAction(), $nullFilters, true)) {
                         $param1 = $value->getParam1();
                         $compiledConditions[] = sprintf(
                             '%s.%s %s',

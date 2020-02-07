@@ -4,6 +4,8 @@ class FilterExpression
 {
     const ACTION_EQUAL = '=';
     const ACTION_NOT_EQUAL = '<>';
+    const ACTION_GREATER = '>';
+    const ACTION_LESS = '<';
     const ACTION_IN = 'IN';
     const ACTION_NOT_IN = 'NOT IN';
     const ACTION_IS_NULL = 'IS NULL';
