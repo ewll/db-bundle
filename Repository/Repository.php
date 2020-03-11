@@ -171,7 +171,7 @@ SQL
         return $num;
     }
 
-    public function findByRelativeIndexed(array $list, $fieldName = null): array
+    public function findByRelativeIndexed(array $list, string $fieldName = null, bool $isForUpdate = false): array
     {
         $fieldName = $fieldName ?? "{$this->config->tableName}Id";
         $ids = [];
@@ -187,7 +187,16 @@ SQL
         $ids = array_unique($ids);
         $elements = $this->findBy(['id' => $ids], 'id');
 
-        return $elements;
+
+        $qb = new QueryBuilder($this);
+        $qb
+            ->addConditions(['id' => $ids])
+            ->setIndex('id');
+        if (true === $isForUpdate) {
+            $qb->setFlag(QueryBuilder::FLAG_FOR_UPDATE);
+        }
+
+        return $this->find($qb);
     }
 
     public function clear()
