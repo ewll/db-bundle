@@ -1,12 +1,12 @@
 <?php namespace Ewll\DBBundle\Command;
 
 use Doctrine\Common\Annotations\Reader;
-use Ewll\DBBundle\Annotation\AnnotationInterface;
+use Ewll\DBBundle\Annotation\RelationTypeInterface;
+use Ewll\DBBundle\Annotation\TypeInterface;
 use Ewll\DBBundle\Cache\Cachier;
 use Ewll\DBBundle\DB\CacheKeyCompiler;
 use Ewll\DBBundle\Repository\EntityConfig;
 use ReflectionClass;
-use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -69,24 +69,40 @@ class EntityCacheCommand extends Command
     {
         $files = glob("{$entityDir['dir']}/*.php");
         foreach ($files as $file) {
-            preg_match('/([a-z]+)\.php/i', $file, $matches);
-            $tableName = lcfirst($matches[1]);
+            preg_match('/([a-z_]+)\.php/i', $file, $matches);
+            $tableName = $this->compileTableName($matches[1]);
             $className = implode('\\', ['', $entityDir['namespace'], 'Entity', $matches[1]]);
             $reflectionClass = new ReflectionClass($className);
             $fields = [];
+            $relations = [];
             $reflectionProperties = $reflectionClass->getProperties();
             foreach ($reflectionProperties as $reflectionProperty) {
                 $propertyAnnotations = $this->annotationReader->getPropertyAnnotations($reflectionProperty);
                 foreach ($propertyAnnotations as $propertyAnnotation) {
-                    if ($propertyAnnotation instanceof AnnotationInterface) {
+                    if ($propertyAnnotation instanceof TypeInterface) {
                         $fields[$reflectionProperty->getName()] = serialize($propertyAnnotation);
+                        break;
+                    } elseif ($propertyAnnotation instanceof RelationTypeInterface) {
+                        $relations[$reflectionProperty->getName()] = serialize($propertyAnnotation);
                         break;
                     }
                 }
             }
             $cacheKey = $this->cacheKeyCompiler->compile($className);
-            $entityConfig = new EntityConfig($className, $tableName, $fields);
+            $entityConfig = new EntityConfig($className, $tableName, $fields, $relations);
             $this->cachier->set($cacheKey, $entityConfig);
         }
+    }
+
+    private function compileTableName(string $fileName): string
+    {
+        $exploded = explode('_', $fileName);
+        $modified = [];
+        foreach ($exploded as $part) {
+            $modified[] = lcfirst($part);
+        }
+        $tableName = implode('_', $modified);
+
+        return $tableName;
     }
 }

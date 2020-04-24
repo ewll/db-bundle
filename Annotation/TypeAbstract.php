@@ -1,6 +1,6 @@
 <?php namespace Ewll\DBBundle\Annotation;
 
-abstract class TypeAbstract implements AnnotationInterface
+abstract class TypeAbstract implements TypeInterface
 {
     public $config;
 

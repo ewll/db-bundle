@@ -5,6 +5,7 @@ use Ewll\DBBundle\Exception\ExecuteException;
 use Ewll\DBBundle\Query\QueryBuilder;
 use LogicException;
 use RuntimeException;
+use Symfony\Component\Inflector\Inflector;
 
 class Repository
 {
@@ -15,6 +16,8 @@ class Repository
 
     /** @var EntityConfig */
     protected $config;
+    /** @var RepositoryProvider */
+    protected $repositoryProvider;
     /** @var Client */
     protected $dbClient;
     /** @var Hydrator */
@@ -23,6 +26,11 @@ class Repository
     protected $cipherkey;
 
     private $cache = [];
+
+    public function setRepositoryProvider(RepositoryProvider $repositoryProvider): void
+    {
+        $this->repositoryProvider = $repositoryProvider;
+    }
 
     public function setDbClient(Client $client)
     {
@@ -185,7 +193,7 @@ SQL
             return [];
         }
         $ids = array_unique($ids);
-        $elements = $this->findBy(['id' => $ids], 'id');
+//        $elements = $this->findBy(['id' => $ids], 'id');
 
 
         $qb = new QueryBuilder($this);
@@ -249,68 +257,10 @@ SQL
         $queryParams = [];
         $compiledConditions = [];
         if ($queryBuilder->hasConditions()) {
-            $placeholderIncrement = 0;
+            $phInc = 0;
             foreach ($queryBuilder->getConditions() as $field => $value) {
-                if ($value instanceof FilterExpression) {//@TODO
-                    $placeholderIncrement++;
-                    $singleFilters = [
-                        FilterExpression::ACTION_EQUAL,
-                        FilterExpression::ACTION_NOT_EQUAL,
-                        FilterExpression::ACTION_GREATER,
-                        FilterExpression::ACTION_LESS
-                    ];
-                    $arrayFilters = [FilterExpression::ACTION_IN, FilterExpression::ACTION_NOT_IN];
-                    $nullFilters = [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL];
-                    if (in_array($value->getAction(), $singleFilters, true)) {
-                        $placeholder = "{$value->getParam1()}_{$placeholderIncrement}";
-                        $queryParams[$placeholder] = $value->getParam2();
-                        $compiledConditions[] = sprintf(
-                            '%s.%s %s :%s',
-                            $prefix,
-                            $value->getParam1(),
-                            $value->getAction(),
-                            $placeholder
-                        );
-                    } elseif (in_array($value->getAction(), $arrayFilters, true)) {
-                        $prePlaceholder = "{$value->getParam1()}_{$placeholderIncrement}";
-                        $placeholders = [];
-                        foreach ($value->getParam2() as $elKey => $elValue) {
-                            $placeholder = "{$prePlaceholder}_$elKey";
-                            $placeholders[] = ":{$placeholder}";
-                            $queryParams[$placeholder] = $elValue;
-                        }
-
-                        $compiledConditions[] = sprintf(
-                            '%s.%s %s (%s)',
-                            $prefix,
-                            $value->getParam1(),
-                            $value->getAction(),
-                            implode(',', $placeholders)
-                        );
-                    } elseif (in_array($value->getAction(), $nullFilters, true)) {
-                        $param1 = $value->getParam1();
-                        $compiledConditions[] = sprintf(
-                            '%s.%s %s',
-                            is_array($param1) ? $param1[0] : $prefix,
-                            is_array($param1) ? $param1[1] : $param1,
-                            $value->getAction(),
-                        );
-                    } else {
-                        throw new RuntimeException('Unknown FilterExpression action');
-                    }
-                } elseif (is_array($value)) {
-                    $valueItemPlaceholders = [];
-                    foreach ($value as $valueKey => $valueItem) {
-                        $valueItemName = "{$field}_{$valueKey}";
-                        $valueItemPlaceholders[] = ":$valueItemName";
-                        $queryParams[$valueItemName] = $valueItem;
-                    }
-                    $valueItemPlaceholdersStr = implode(', ', $valueItemPlaceholders);
-                    $compiledConditions[] = "$prefix.$field IN ($valueItemPlaceholdersStr)";
-                } else {
-                    $queryParams[$field] = $value;
-                    $compiledConditions[] = "$prefix.$field = :$field";
-                }
+                $phInc++;
+                $this->handleCondition($queryBuilder, $field, $value, $phInc, $queryParams, $compiledConditions);
             }
         }
         $compiledSort = [];
@@ -386,7 +336,99 @@ DELETE FROM {$this->config->tableName} WHERE id = :id
 SQL
             )->execute($params);
         } else {
-            throw new RuntimeException('Not realised');
+            $item->isDeleted = 1;
+            $this->update($item, ['isDeleted']);
+        }
+    }
+
+    private function handleCondition(
+        QueryBuilder $queryBuilder,
+        string $field,
+        $condition,
+        int $phInc,
+        array &$queryParams,
+        array &$compiledConditions
+    ) {
+        $mainPrefix = $queryBuilder->getPrefix();
+        $fieldName = $condition instanceof FilterExpression ? $condition->getParam1() : $field;
+        if (is_array($fieldName)) {//@TODO Crud DbSource
+            $prefix = $mainPrefix;
+        } else {
+            $isRelationFieldType = array_key_exists($fieldName, $this->config->relations);
+            if ($isRelationFieldType) {//@TODO Двойные джойны по двум фильтрам
+                $prefix = 't' . (count($queryBuilder->getJoins()) + 2);
+                $relationConfig = $this->config->relations[$fieldName];
+                $relationRepository = $this->repositoryProvider->get($relationConfig->config['RelationClassName']);
+                $relationTableName = $relationRepository->getEntityConfig()->tableName;
+                $joinCondition = sprintf('%s.id = %s.%sId', $mainPrefix, $prefix, $this->config->tableName);
+                $queryBuilder
+                    ->addJoin($relationTableName, $prefix, $joinCondition, 'LEFT');
+                $fieldName = Inflector::singularize($fieldName);
+            } else {
+                $prefix = $mainPrefix;
+            }
+        }
+        if ($condition instanceof FilterExpression) {
+            $singleFilters = [
+                FilterExpression::ACTION_EQUAL,
+                FilterExpression::ACTION_NOT_EQUAL,
+                FilterExpression::ACTION_GREATER,
+                FilterExpression::ACTION_LESS
+            ];
+            $arrayFilters = [FilterExpression::ACTION_IN, FilterExpression::ACTION_NOT_IN];
+            $nullFilters = [FilterExpression::ACTION_IS_NULL, FilterExpression::ACTION_IS_NOT_NULL];
+            if (in_array($condition->getAction(), $singleFilters, true)) {
+                $placeholder = is_array($fieldName)
+                    ? "{$fieldName[0]}{$fieldName[1]}_{$phInc}"
+                    : "{$fieldName}_{$phInc}";
+                $queryParams[$placeholder] = $condition->getParam2();
+                $compiledConditions[] = sprintf(
+                    '%s.%s %s :%s',
+                    is_array($fieldName) ? $fieldName[0] : $prefix,
+                    is_array($fieldName) ? $fieldName[1] : $fieldName,
+                    $condition->getAction(),
+                    $placeholder
+                );
+            } elseif (in_array($condition->getAction(), $arrayFilters, true)) {
+                $prePlaceholder = is_array($fieldName)
+                    ? "{$fieldName[0]}{$fieldName[1]}_{$phInc}"
+                    : "{$fieldName}_{$phInc}";
+                $placeholders = [];
+                foreach ($condition->getParam2() as $elKey => $elValue) {
+                    $placeholder = "{$prePlaceholder}_$elKey";
+                    $placeholders[] = ":{$placeholder}";
+                    $queryParams[$placeholder] = $elValue;
+                }
+
+                $compiledConditions[] = sprintf(
+                    '%s.%s %s (%s)',
+                    is_array($fieldName) ? $fieldName[0] : $prefix,
+                    is_array($fieldName) ? $fieldName[1] : $fieldName,
+                    $condition->getAction(),
+                    implode(',', $placeholders)
+                );
+            } elseif (in_array($condition->getAction(), $nullFilters, true)) {
+                $compiledConditions[] = sprintf(
+                    '%s.%s %s',
+                    is_array($fieldName) ? $fieldName[0] : $prefix,
+                    is_array($fieldName) ? $fieldName[1] : $fieldName,
+                    $condition->getAction(),
+                );
+            } else {
+                throw new RuntimeException('Unknown FilterExpression action');
+            }
+        } elseif (is_array($condition)) {
+            $conditionItemPlaceholders = [];
+            foreach ($condition as $conditionKey => $conditionItem) {
+                $conditionItemName = "{$fieldName}_{$conditionKey}";
+                $conditionItemPlaceholders[] = ":$conditionItemName";
+                $queryParams[$conditionItemName] = $conditionItem;
+            }
+            $conditionItemPlaceholdersStr = implode(', ', $conditionItemPlaceholders);
+            $compiledConditions[] = "$prefix.$fieldName IN ($conditionItemPlaceholdersStr)";
+        } else {
+            $queryParams[$fieldName] = $condition;
+            $compiledConditions[] = "$prefix.$fieldName = :$fieldName";
         }
     }
 }

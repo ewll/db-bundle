@@ -1,6 +1,7 @@
 <?php namespace Ewll\DBBundle\Form\ChoiceList\Loader;
 
 use Ewll\DBBundle\Query\QueryBuilder;
+use Ewll\DBBundle\Repository\FilterExpression;
 use Ewll\DBBundle\Repository\Repository;
 use Symfony\Component\Form\ChoiceList\ArrayChoiceList;
 use Symfony\Component\Form\ChoiceList\Loader\ChoiceLoaderInterface;
@@ -13,46 +14,39 @@ class EntityChoiceLoader implements ChoiceLoaderInterface
     /** @var ArrayChoiceList */
     private $choiceList;
 
-    private $translator;
     private $repository;
-    private $placeholder;
-    private $translationDomain;
+    private $compileText;
     private $conditions;
+    private $fetchingFields;
 
     public function __construct(
-        TranslatorInterface $translator,
         Repository $repository,
-        string $placeholder = null,
-        string $translationDomain = null,
-        array $conditions = []
+        callable $compileText,
+        array $conditions = [],
+        array $fetchingFields = ['id']
     ) {
-        $this->translator = $translator;
         $this->repository = $repository;
-        $this->placeholder = $placeholder;
-        $this->translationDomain = $translationDomain;
+        $this->compileText = $compileText;
         $this->conditions = $conditions;
+        $this->fetchingFields = $fetchingFields;
     }
 
     /** {@inheritdoc} */
-    public function loadChoiceList($value = null)
+    public function loadChoiceList(callable $value = null)
     {
         if (null !== $this->choiceList) {
             return $this->choiceList;
         }
 
-        $qb = new QueryBuilder($this->repository, QueryBuilder::DEFAULT_PREFIX, ['id']);
+        $qb = new QueryBuilder($this->repository, QueryBuilder::DEFAULT_PREFIX, $this->fetchingFields);
         $qb
-            ->addConditions($this->conditions);
+            ->addConditions($this->conditions)
+            ->addCondition(new FilterExpression(FilterExpression::ACTION_EQUAL, 'isDeleted', 0));
         $items = $this->repository->find($qb);
 
         $choices = [];
         foreach ($items as $item) {
-            if (null === $this->placeholder) {
-                $text = $item->id;
-            } else {
-                $placeholder = str_replace(self::PLACEHOLDER, $item->id, $this->placeholder);
-                $text = $this->translator->trans($placeholder, [], $this->translationDomain);
-            }
+            $text = ($this->compileText)($item);
             $choices[$text] = $item->id;
         }
 
@@ -60,7 +54,7 @@ class EntityChoiceLoader implements ChoiceLoaderInterface
     }
 
     /** {@inheritdoc} */
-    public function loadChoicesForValues(array $values, $value = null)
+    public function loadChoicesForValues(array $values, callable $value = null)
     {
         // Optimize
         if (empty($values)) {
@@ -71,7 +65,7 @@ class EntityChoiceLoader implements ChoiceLoaderInterface
     }
 
     /** {@inheritdoc} */
-    public function loadValuesForChoices(array $choices, $value = null)
+    public function loadValuesForChoices(array $choices, callable $value = null)
     {
         // Optimize
         if (empty($choices)) {

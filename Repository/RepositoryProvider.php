@@ -56,6 +56,7 @@ class RepositoryProvider
         if (null === $repository) {
             $repository = $this->container->get('ewll.db.repository');
         }
+        $repository->setRepositoryProvider($this);
         $repository->setDbClient($this->defaultDbClient);
         $repository->setEntityConfig($this->getEntityConfig($entityClass));
         $repository->setHydrator($this->hydrator);
