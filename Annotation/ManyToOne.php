@@ -4,6 +4,6 @@
  * @Annotation
  * @deprecated Experimental
  */
-class ManyToMany extends RelationTypeAbstract
+class ManyToOne extends RelationTypeAbstract
 {
 }

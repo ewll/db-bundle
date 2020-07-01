@@ -1,11 +1,14 @@
 <?php namespace Ewll\DBBundle\Repository;
 
+use Ewll\DBBundle\Annotation\ManyToMany;
+use Ewll\DBBundle\Annotation\ManyToOne;
 use Ewll\DBBundle\DB\Client;
 use Ewll\DBBundle\Exception\ExecuteException;
 use Ewll\DBBundle\Query\QueryBuilder;
 use LogicException;
 use RuntimeException;
 use Symfony\Component\Inflector\Inflector;
+use Symfony\Component\PropertyAccess\PropertyPath;
 
 class Repository
 {
@@ -350,7 +353,13 @@ SQL
         array &$compiledConditions
     ) {
         $mainPrefix = $queryBuilder->getPrefix();
-        $fieldName = $condition instanceof FilterExpression ? $condition->getParam1() : $field;
+        $fieldPath = $condition instanceof FilterExpression ? $condition->getParam1() : $field;
+        if ($fieldPath instanceof PropertyPath) {
+            //@TODO max elements checking
+            $fieldName = $fieldPath->getElement(0);
+        } else {
+            $fieldName = $fieldPath;
+        }
         if (is_array($fieldName)) {//@TODO Crud DbSource
             $prefix = $mainPrefix;
         } else {
@@ -360,10 +369,17 @@ SQL
                 $relationConfig = $this->config->relations[$fieldName];
                 $relationRepository = $this->repositoryProvider->get($relationConfig->config['RelationClassName']);
                 $relationTableName = $relationRepository->getEntityConfig()->tableName;
-                $joinCondition = sprintf('%s.id = %s.%sId', $mainPrefix, $prefix, $this->config->tableName);
+                if ($relationConfig instanceof ManyToMany) {
+                    $joinCondition = sprintf('%s.id = %s.%sId', $mainPrefix, $prefix, $this->config->tableName);
+                    $fieldName = Inflector::singularize($fieldName);
+                } elseif ($relationConfig instanceof ManyToOne) {
+                    $joinCondition = sprintf('%s.%sId = %s.id', $mainPrefix, $fieldName, $prefix);
+                    $fieldName = $fieldPath->getElement(1);
+                } else {
+                    throw new RuntimeException('TODO');
+                }
                 $queryBuilder
                     ->addJoin($relationTableName, $prefix, $joinCondition, 'LEFT');
-                $fieldName = Inflector::singularize($fieldName);
             } else {
                 $prefix = $mainPrefix;
             }
