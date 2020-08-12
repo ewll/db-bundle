@@ -50,6 +50,7 @@
         </service>
 
         <service id="ewll.db.entity-key-compiler" class="Ewll\DBBundle\DB\CacheKeyCompiler">
+            <argument>%kernel.project_dir%</argument>
         </service>
 
         <service id="ewll.db.repository"
