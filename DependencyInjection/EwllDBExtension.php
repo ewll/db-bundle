@@ -35,6 +35,7 @@ class EwllDBExtension extends Extension
         foreach ($config['connections'] as $name => $options) {
             $service = $container
                 ->register(sprintf('ewll.db.client.%1$s', $name), Client::class)
+                ->setPublic(true)
                 ->addArgument($options['host'])
                 ->addArgument($options['port'])
                 ->addArgument($options['database'])
